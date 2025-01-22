@@ -1,0 +1,12 @@
+{
+"terminal.integrated.profiles.windows": {
+    "Command Prompt": {
+        "path": "C:\\Windows\\System32\\cmd.exe"
+    },
+    "Developer Command Prompt": {
+        "path": "C:\\Program Files (x86)\\Microsoft Visual Studio\\2022\\Community\\Common7\\Tools\\VsDevCmd.bat"
+    }
+},
+"terminal.integrated.defaultProfile.windows": "Command Prompt",
+"cmake.ignoreCMakeListsMissing": true
+}
