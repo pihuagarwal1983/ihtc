@@ -1,0 +1,64 @@
+# Ignore build directory and its contents
+/build/
+
+# Ignore generated output files
+/output/*
+!/output/.gitkeep  # Keep the output directory structure in the repository
+
+# Ignore temporary or backup files
+*.tmp
+*.bak
+*.swp
+*.swo
+*.log
+
+# Ignore object and executable files
+*.o
+*.obj
+*.exe
+*.out
+*.dll
+*.so
+*.a
+*.lib
+
+# Ignore CMake generated files
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+
+# Ignore Visual Studio-specific files
+*.vcxproj*
+*.sln
+*.user
+*.ncb
+*.sdf
+*.suo
+ipch/
+.vscode/
+
+# Ignore ReSharper cache files
+.idea/
+_ReSharper*/
+*.DotSettings.user
+*.suo
+
+# Ignore compiled JSON test results or temporary data files
+data/instances/*.tmp.json
+data/testInstances/*.tmp.json
+
+# Ignore IDE and editor-specific files
+.idea/
+.vscode/
+*.DS_Store  # macOS-specific
+*.~         # Temporary files
+Thumbs.db   # Windows-specific
+
+# Ignore logs and debugging artifacts
+*.log
+*.trace
+
+# Ignore personal or sensitive files
+*.env
+*.key
