@@ -647,14 +647,23 @@ void assign_patients_to_surgeon(void) {
 
 
 void free_surgeons() {
-   if (!surgeon) return;
-   for (int i = 0; i < num_surgeons; i++) {
-      if (surgeon[i].patients_assigned != NULL)
-         free(surgeon[i].patients_assigned); // Free dynamically allocated array
-      free(surgeon[i].max_surgery_time);  // Free the dynamically allocated max_surgery_time array
-   }
-   free(surgeon); // Free the array of Surgeon structs
+    if (!surgeon) return; // Check if surgeon array exists
+
+    for (int i = 0; i < num_surgeons; i++) {
+        if (surgeon[i].patients_assigned) {
+            free(surgeon[i].patients_assigned);
+            surgeon[i].patients_assigned = NULL; // Avoid dangling pointer
+        }
+        if (surgeon[i].max_surgery_time) {
+            free(surgeon[i].max_surgery_time);
+            surgeon[i].max_surgery_time = NULL; // Avoid dangling pointer
+        }
+    }
+
+    free(surgeon); // Free the array of Surgeon structs
+    surgeon = NULL; // Avoid dangling pointer
 }
+
 
 // Function to parse the operating theatres
 void parse_ots(cJSON* ot_array) {
@@ -686,7 +695,6 @@ void parse_ots(cJSON* ot_array) {
          ot[i].time_left = (int*)calloc(size, sizeof(int));
          if (!ot[i].max_ot_time) {
             printf("Memory allocation failed for max_ot_time.\n");
-            //free_ots(i);  // Free already allocated memory
             exit(1);
          }
          for (int j = 0; j < size; j++) {
@@ -700,12 +708,21 @@ void parse_ots(cJSON* ot_array) {
 }
 
 void free_ots() {
-   if (!ot) return;
-   for (int i = 0; i < num_ots; i++) {
-      free(ot[i].max_ot_time);
-      free(ot[i].time_left);
-   }
-   free(ot);
+    if (!ot) return; // Check if 'ot' is already NULL
+
+    for (int i = 0; i < num_ots; i++) {
+        if (ot[i].max_ot_time) {
+            free(ot[i].max_ot_time);
+            ot[i].max_ot_time = NULL; // Avoid dangling pointer
+        }
+        if (ot[i].time_left) {
+            free(ot[i].time_left);
+            ot[i].time_left = NULL; // Avoid dangling pointer
+        }
+    }
+
+    free(ot); // Free the array of OT structs
+    ot = NULL; // Avoid dangling pointer
 }
 
 void parse_rooms(cJSON* room_array) {
@@ -1602,7 +1619,7 @@ void sort_s_data_arr(Surgeon_data** s_data_arr, int n, Node* head) {
    // print_s_data_arr(s_data_arr, n);
 //quick_sort_surgeons_on_s_duration_sum(s_data_arr, 0, n-1);  
    qsort(s_data_arr, n, sizeof(Surgeon_data*), compare_surgeon);
-   print_s_data_arr(s_data_arr, n, sorting_day);
+  // print_s_data_arr(s_data_arr, n, sorting_day);
 }
 
 
@@ -1841,7 +1858,7 @@ int findSuitableRoom(int p_id, GenderRoom* gender_head) {
    // assign available Room and return the room_id
    // considerations - capacity, gender, compatibility & age-mix
    // do something so that the sum_workload_of_a_room does not exceed too much as that will create issues while assigning nurses
-   int flag, i, j, r_id, g = patients[p_id].gen, n;
+   int flag = 0, i, j, r_id, g = patients[p_id].gen, n;
    char* age = patients[p_id].age_group;
    GenderRoom* self, * prev_ptr, * temp;
 
@@ -1909,7 +1926,7 @@ void update_LOS_of_patients(int d) {
       r_id = occ.room_id;
       g = occ.gen;
       days_passed = d - occ.length_of_stay;
-      if (days_passed >= 0) {
+      if (days_passed > 0) {
          // throw the occupant out
          room[r_id].occupants_cap--;
          if (!room[r_id].occupants_cap && !room[r_id].num_patients_allocated)
@@ -1918,7 +1935,7 @@ void update_LOS_of_patients(int d) {
       }
    }
 
-   for (i = 0; i <= d; ++i) {
+   for (i = 1; i <= d; ++i) {
       p = sorted_mandatory_patients[i];
       // parse the sorted_mandatory_patients array (arr of linked lists pointers)
       for (self = p; self; self = self->next) {
@@ -2237,7 +2254,7 @@ void admit_patients(int* room_gender_map, PriorityQueue* pq) {
 
       for (i = 0; i < len_surgeon_array; ++i)
          if (!s_data_arr[i]->isNull) {
-            if (!surgeon[s_data_arr[i]->surgeon_id].time_left[d]) {
+            if (!surgeon[s_data_arr[i]->surgeon_id].time_left[d-1]) {
                // the surgeon is not available and hence add all the patients to the PQ
                for (k = 0; k < s_data_arr[i]->num_assigned_patients; ++k) {
                   temp_patient_id = s_data_arr[i]->assigned_patients[k];
@@ -2648,7 +2665,7 @@ void create_json_file(Patient* patients, int num_patients, Nurses* nurse, int nu
    // Add patients array
    fprintf(file, "  \"patients\": [\n");
    for (int i = 0; i < num_patients; i++) {
-      fprintf(file, "    {\n");
+      //fprintf(file, "    {\n");
       fprintf(file, "      \"id\": \"%s\",\n", patients[i].id);
       fprintf(file, "      \"admission_day\": %d,\n", patients[i].admission_day);
       fprintf(file, "      \"room\": \"r%d\",\n", patients[i].assigned_room_no);  // Add "r" prefix to room ID
@@ -2697,7 +2714,7 @@ void create_json_file(Patient* patients, int num_patients, Nurses* nurse, int nu
 
 int main(void) {
 
-   parse_json("data/instances/i01.json");
+   parse_json("data/instances/toy.json");
    PriorityQueue* pq;
 
    initialize_room_gender_map(&room_gender_map);
@@ -2724,7 +2741,7 @@ int main(void) {
   // print_mandatory_patients();
     //print_sorted_mandatory_array();
     //print_sorted_mandatory_patients();
-   //create_json_file(patients , num_patients , nurses , num_nurses);
+   create_json_file(patients , num_patients , nurses , num_nurses);
    // Use the parsed data in your algorithm
    // int *surgery_time[num_surgeons][days];
    // printf("Weights:\n");
