@@ -6,6 +6,15 @@
 #include <math.h>
 #include <time.h>
 #include "cJSON.h"
+//#include <cassert>
+
+#define ASSERT(condition, message) \
+    do { \
+        if (!(condition)) { \
+            fprintf(stderr, "Assertion failed: %s\nFile: %s, Line: %d\n", message, __FILE__, __LINE__); \
+            exit(EXIT_FAILURE); \
+        } \
+    } while (0)
 
 
 // Global declarations of variables
@@ -690,18 +699,22 @@ void parse_ots(cJSON* ot_array) {
       // Parse 'max_ot_time'
       cJSON* max_ot_time_json = cJSON_GetObjectItem(item, "availability");
       if (max_ot_time_json && cJSON_IsArray(max_ot_time_json)) {
-         int size = cJSON_GetArraySize(max_ot_time_json);
-         ot[i].max_ot_time = (int*)calloc(size, sizeof(int));
-         ot[i].time_left = (int*)calloc(size, sizeof(int));
+         int num_days = cJSON_GetArraySize(max_ot_time_json);
+         ot[i].max_ot_time = (int*)calloc(num_days, sizeof(int));
+         ot[i].time_left = (int*)calloc(num_days, sizeof(int));
          if (!ot[i].max_ot_time) {
             printf("Memory allocation failed for max_ot_time.\n");
             exit(1);
          }
-         for (int j = 0; j < size; j++) {
-            cJSON* time_item = cJSON_GetArrayItem(max_ot_time_json, j);
-            if (time_item && cJSON_IsNumber(time_item)) ot[i].max_ot_time[j] = time_item->valueint;
+         for (int n_day = 0; n_day < num_days; n_day++) {
+            cJSON* time_item = cJSON_GetArrayItem(max_ot_time_json, n_day);
+            int time = time_item->valueint;
+            if (time_item && cJSON_IsNumber(time_item)) {
+                ot[i].max_ot_time[n_day] = time_item->valueint;
+                ot[i].time_left[n_day] = time_item->valueint;
+            }
             else printf("Invalid max_ot_time value at index. Defaulting to 0.\n");
-            ot[i].time_left[j] = ot[i].max_ot_time[j];
+            
          }
       }
    }
@@ -715,9 +728,16 @@ void free_ots() {
             free(ot[i].max_ot_time);
             ot[i].max_ot_time = NULL; // Avoid dangling pointer
         }
+        else {
+            ASSERT(0, "no value present in the max_ot_time array of ot.\n");
+        }
+        
         if (ot[i].time_left) {
             free(ot[i].time_left);
             ot[i].time_left = NULL; // Avoid dangling pointer
+        }
+        else {
+            ASSERT(0 , "no value present in the time_left array of ot.\n");
         }
     }
 
@@ -1831,11 +1851,11 @@ GenderRoom* removeAndAppendGenderRoom(int r_id, GenderRoom* src) {
    // remove the r_id room from src genderRoom array and append it in the emptyRooms genderRoom array
    // return: the new head of src
    GenderRoom* self = src;
-   while (self->next && self->pointer->id != r_id) {
+   while (self && self->pointer->id != r_id) {
       self = self->next;
    }
    //for (self=src; self->pointer->id != r_id; self=self->next);
-   if (self == src) { // it's the very first room in the genderRoom array,
+   if (self && self == src) { // it's the very first room in the genderRoom array,
       // so it'll be differently dealt with.
           // take out self from src genderRoom array
       src = src->next;
@@ -1861,6 +1881,12 @@ int findSuitableRoom(int p_id, GenderRoom* gender_head) {
    int flag = 0, i, j, r_id, g = patients[p_id].gen, n;
    char* age = patients[p_id].age_group;
    GenderRoom* self, * prev_ptr, * temp;
+   
+   /* TODO -- 1. IF GENDER_HEAD IS NULL THEN WE WILL PICK A ROOM FROM EMPTY_ROOM AND ADD IT IN THE GENDER_HEAD.
+   *          2. IF BOTH GENDER_HEAD AND EMPTY_ROOM IS NULL THEN WE WILL PUT THE PATIENT IN THE PRIORITY QUEUE.
+   *          3. IF NO ROOM IN GENDER_HEAD IS AVAILABLE THEN ALSO THE PATIENT WILL GO INTO THE PRIORITY QUEUE.
+   *          4. IF NO COMPATIBLE_ROOM IS AVAILABLE IN EMPTY_ROOM THEN ALSO PATIENT WILL GO IN PRIORITY QUEUE.
+   */
 
    for (self = gender_head; self; self = self->next) {
       flag = 0;
@@ -1890,7 +1916,10 @@ int findSuitableRoom(int p_id, GenderRoom* gender_head) {
          if (flag) continue;
          // now remove this room node from empty room array and append it in the associated gender array
          if (self == empty_rooms) {
+             GenderRoom* temp = empty_rooms;
             empty_rooms = empty_rooms->next;
+            //free(temp);
+            if(empty_rooms)
             empty_rooms->prev = NULL;
          }
          else {
@@ -2031,18 +2060,18 @@ OTs* admitMandatoryFromPQ(PriorityQueue* pq, int d, OTs** ot_data_arr, OTs* curr
       s_duration = patients[p_id].surgery_duration;
       // assign available OT
       // first - select a suitable OT
-      if (!current_ot->time_left[d])
-         if (current_ot_index != num_ots)
+      if (!current_ot->time_left[d-1])
+         if (current_ot_index < num_ots)
             current_ot = ot_data_arr[current_ot_index++];
 
-      while (current_ot->time_left[d] < s_duration) {
+      while (current_ot->time_left[d-1] < s_duration) {
          if (current_ot_index == num_ots) { flag = 1; break; }
          current_ot = ot_data_arr[current_ot_index++];
       }
       if (flag) {
          flag = 0;
          for (i = 0; i < num_ots; ++i) {
-            if (ot[i].time_left[d] >= s_duration) {
+            if (ot[i].time_left[d-1] >= s_duration) {
                // assign this ot to this patient
                flag = 1;
                patients[p_id].assigned_ot = i;
@@ -2060,7 +2089,7 @@ OTs* admitMandatoryFromPQ(PriorityQueue* pq, int d, OTs** ot_data_arr, OTs* curr
          // assign OT--------------------------------------------------------------------------------------------------
          patients[p_id].assigned_ot = current_ot->id;
          // update the time left
-         current_ot->time_left -= s_duration;
+         current_ot->time_left[d-1] = current_ot->time_left[d-1] - s_duration;
       }
       // assign a room
       r_id = patients[p_id].gen ? findSuitableRoom(p_id, gender_B_rooms) : findSuitableRoom(p_id, gender_A_rooms);
@@ -2087,7 +2116,7 @@ OTs* admitMandatoryFromPQ(PriorityQueue* pq, int d, OTs** ot_data_arr, OTs* curr
 
 OTs* admitOptionalFromPQ(PriorityQueue* pq, int d, OTs** ot_data_arr, OTs* current_ot) {
    // here we'll admit the optional patients from the PQ
-   int i, j, p_id, s_id, temp, s_duration, flag, r_id;
+   int i, j, p_id, s_id, temp, s_duration, flag = 0, r_id;
    HeapNode node;
    Mand_opt_PQ* head = NULL, * opt_ptr = NULL;
 
@@ -2104,18 +2133,18 @@ OTs* admitOptionalFromPQ(PriorityQueue* pq, int d, OTs** ot_data_arr, OTs* curre
       s_duration = patients[p_id].surgery_duration;
       // assign available OT
       // first - select a suitable OT
-      if (!current_ot->time_left[d])
+      if (!current_ot->time_left[d-1])
          if (current_ot_index != num_ots)
             current_ot = ot_data_arr[current_ot_index++];
 
-      while (current_ot->time_left[d] < s_duration) {
+      while (current_ot->time_left[d-1] < s_duration) {
          if (current_ot_index == num_ots) { flag = 1; break; }
          current_ot = ot_data_arr[current_ot_index++];
       }
       if (flag) {
          flag = 0;
          for (i = 0; i < num_ots; ++i) {
-            if (ot[i].time_left[d] >= s_duration) {
+            if (ot[i].time_left[d-1] >= s_duration) {
                // assign this ot to this patient
                flag = 1;
                patients[p_id].assigned_ot = i;
@@ -2245,12 +2274,12 @@ void admit_patients(int* room_gender_map, PriorityQueue* pq) {
          continue; // go to the next day and then admit these patients
       }
 
-      head = sorted_mandatory_patients[d];
-      max_surgeon_id = find_max_surgeon_id(head);
-      len_surgeon_array = max_surgeon_id + 1;
-      // Added 1 to max_surgeon_id cuz we need space for the nth (max_is) also, so we'll have to make the total length (n+1)
-      s_data_arr = (Surgeon_data**)calloc(len_surgeon_array, sizeof(Surgeon_data*));
-      sort_s_data_arr(s_data_arr, len_surgeon_array, head);
+      //head = sorted_mandatory_patients[d];
+      //max_surgeon_id = find_max_surgeon_id(head);
+      //len_surgeon_array = max_surgeon_id + 1;
+      //// Added 1 to max_surgeon_id cuz we need space for the nth (max_is) also, so we'll have to make the total length (n+1)
+      //s_data_arr = (Surgeon_data**)calloc(len_surgeon_array, sizeof(Surgeon_data*));
+      //sort_s_data_arr(s_data_arr, len_surgeon_array, head);
 
       for (i = 0; i < len_surgeon_array; ++i)
          if (!s_data_arr[i]->isNull) {
@@ -2271,7 +2300,7 @@ void admit_patients(int* room_gender_map, PriorityQueue* pq) {
                if (patients[p_id].mandatory) {
                   // assign available OT
                   // first - select a suitable OT
-                  while (current_ot->time_left[d] < s_duration) {
+                  while (current_ot->time_left[d-1] < s_duration) {
                      if (current_ot_index == num_ots) { flag = 1; break; }
                      current_ot = ot_data_arr[current_ot_index++];
                   }
@@ -2282,7 +2311,7 @@ void admit_patients(int* room_gender_map, PriorityQueue* pq) {
                      }
                      break;
                   }
-                  if (s_duration <= current_ot->time_left[d]) {
+                  if (s_duration <= current_ot->time_left[d-1]) {
                      // no need to check now actually but check only to be safe
                      // assign OT--------------------------------------------------------------------------------------------------
                      patients[p_id].assigned_ot = current_ot->id;
@@ -2664,9 +2693,13 @@ void create_json_file(Patient* patients, int num_patients, Nurses* nurse, int nu
 
    // Add patients array
    fprintf(file, "  \"patients\": [\n");
+   if (patients == NULL || nurse == NULL) {
+       printf("Error: Null pointer passed for patients or nurses.\n");
+       return;
+   }
    for (int i = 0; i < num_patients; i++) {
       //fprintf(file, "    {\n");
-      fprintf(file, "      \"id\": \"%s\",\n", patients[i].id);
+      fprintf(file, "      \"id\": \"%d\",\n", patients[i].id);
       fprintf(file, "      \"admission_day\": %d,\n", patients[i].admission_day);
       fprintf(file, "      \"room\": \"r%d\",\n", patients[i].assigned_room_no);  // Add "r" prefix to room ID
       fprintf(file, "      \"operating_theater\": \"t%d\"\n", patients[i].assigned_ot); // Add "t" prefix to OT ID
@@ -2731,8 +2764,9 @@ int main(void) {
    sort_optional_patients_on_release_day(optional_patients, optional_count);
    append_optional_to_mandatory(sorted_mandatory_patients, sorted_optional_patients);
    //print_sorted_optional_array();
-   create_dm_nurses_availability();
-   sorting_nurse_id_max_load();
+   //create_dm_nurses_availability();
+   //sorting_nurse_id_max_load();
+   //print_ots(ot);
    admit_patients(room_gender_map, pq);
    //nurse_assignments();
 
