@@ -1,5 +1,6 @@
 #include <stdio.h>
-#include <conio.h>
+//#include <ncurses.h>
+//#include <conio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
@@ -197,6 +198,14 @@ typedef struct RoomsList {
 GenderRoom* gender_A_rooms = NULL, * gender_B_rooms = NULL, * empty_rooms = NULL;
 
 typedef struct {
+    Rooms** data;
+    int size;
+    int capacity;
+}RoomVector;
+
+RoomVector *v_A, *v_B, *v_empty;
+
+typedef struct {
    int load_sum;
    int max_skill_req;
 } Rooms_req;
@@ -253,6 +262,11 @@ void free_3_room_arrays(void);
 GenderRoom* removeAndAppendGenderRoom(int, GenderRoom*);
 void update_LOS_of_patients(int);
 void admit_patients(int*, PriorityQueue*);
+void init_Rooms(RoomVector* vector, int initialcap);
+void pushback(RoomVector* vector, Rooms* room);
+Rooms* removebyid(RoomVector* vector, int room_id);
+void moveRoom(RoomVector* source, RoomVector* destination, int room_id);
+void freevector(RoomVector* vector);
 
 // ----------------------------------------------ABOVE: FUNCTION PROTOTYPES FOR PAS AND SCP--------------------------------------------
 
@@ -1755,6 +1769,7 @@ GenderRoom* makeGenderRoomNode(Rooms* pointer) {
 GenderRoom* appendGenderRoomNode(GenderRoom* head, GenderRoom* node) {
    // this function appends the "node" at the beginning of the linked list - head
    if (!head) return node;
+   if (!node) return head;
    head->prev = node;
    node->next = head;
    node->prev = NULL;
@@ -1834,6 +1849,91 @@ void free_3_room_arrays(void) {
 //     return count;
 // }
 
+void init_Rooms(RoomVector* vector, int initialcap) {
+    vector->data = (Rooms**)calloc(initialcap, sizeof(Rooms*));
+    if (!vector->data) {
+        printf("\nMemory allocation error.");
+        return;
+    }
+    vector->size = 0;
+    vector->capacity = initialcap;
+}
+
+void pushback(RoomVector* vector, Rooms* room) {
+    if (vector->size == vector->capacity) {
+        int new_capacity = vector->capacity * 2;
+        Rooms** temp = realloc(vector->data, new_capacity * sizeof(Rooms*));
+        if (temp) {
+            vector->data = temp;
+            vector->capacity = new_capacity;
+        }
+        else {
+            fprintf(stderr, "Memory allocation failed in resize\n");
+            return;
+        }
+    }
+    vector->data[vector->size] = room;
+    vector->size++;  // Missing increment
+}
+
+
+Rooms* removebyid(RoomVector* vector, int room_id) {
+    for (int i = 0; i < vector->size; i++) {
+        if (vector->data[i]->id == room_id) {
+            Rooms* room = vector->data[i];
+
+            // Shift elements left
+            for (int j = i; j < vector->size - 1; j++) {
+                vector->data[j] = vector->data[j + 1];
+            }
+
+            vector->size--;  // Reduce size
+            return room;
+        }
+    }
+    return NULL;
+}
+
+
+void moveRoom(RoomVector* source, RoomVector* destination, int room_id) {
+    Rooms* room = removebyid(source, room_id);
+    if (room) {
+        pushback(destination, room);
+    }
+    else {
+        ASSERT(!room, "No room available.\n");
+    }
+}
+
+void freevector(RoomVector* vector) {
+    if (!vector) return;
+    free(vector->data);
+    free(vector);  // Free the struct itself
+}
+
+
+void make_3_vectors(int* room_gender_map) {
+    init_Rooms(v_A, 2);
+    init_Rooms(v_B, 2);
+    init_Rooms(v_empty, 2);
+
+    for (int i = 0; i < num_rooms; i++) {
+        if (room_gender_map[i] == -1)
+            pushback(v_empty, &room[i]);
+        else if (room_gender_map[i] == 0)
+            pushback(v_A, &room[i]);
+        else
+            pushback(v_B, &room[i]);
+    }
+}
+
+void printVector(const char* label, RoomVector* vector) {
+    printf("%s:\n", label);
+    for (int i = 0; i < vector->size; i++) {
+        printf("Room ID: %d, Capacity: %d\n", vector->data[i]->id, vector->data[i]->cap);
+    }
+}
+
 int find_max_surgeon_id(Node* head) {
    int max_s_id = -1, i;
    Node* self = head;
@@ -1873,14 +1973,15 @@ GenderRoom* removeAndAppendGenderRoom(int r_id, GenderRoom* src) {
    return src;
 }
 
-int findSuitableRoom(int p_id, GenderRoom* gender_head) {
+int findSuitableRoom(int p_id, RoomVector* vector) {
    // return - room_id OR -1 in case no room is suitable
    // assign available Room and return the room_id
    // considerations - capacity, gender, compatibility & age-mix
    // do something so that the sum_workload_of_a_room does not exceed too much as that will create issues while assigning nurses
    int flag = 0, i, j, r_id, g = patients[p_id].gen, n;
    char* age = patients[p_id].age_group;
-   GenderRoom* self, * prev_ptr, * temp;
+  // GenderRoom* self, * prev_ptr, * temp;
+
    
    /* TODO -- 1. IF GENDER_HEAD IS NULL THEN WE WILL PICK A ROOM FROM EMPTY_ROOM AND ADD IT IN THE GENDER_HEAD.
    *          2. IF BOTH GENDER_HEAD AND EMPTY_ROOM IS NULL THEN WE WILL PUT THE PATIENT IN THE PRIORITY QUEUE.
@@ -1888,53 +1989,83 @@ int findSuitableRoom(int p_id, GenderRoom* gender_head) {
    *          4. IF NO COMPATIBLE_ROOM IS AVAILABLE IN EMPTY_ROOM THEN ALSO PATIENT WILL GO IN PRIORITY QUEUE.
    */
 
-   for (self = gender_head; self; self = self->next) {
-      flag = 0;
-      // parse the gender_rooms array and for each room - 
-      // find its gender, capacity, num_patients_allocated and whether it is compatible to the patient at hand or not
-      r_id = self->pointer->id;
-      if (room[r_id].cap <= (room[r_id].num_patients_allocated + room[r_id].occupants_cap)) continue;
-      // check for compatibility
-      for (j = 0; j < patients[p_id].num_incompatible_rooms; ++j)
-         if (r_id == patients[p_id].incompatible_room_ids[j]) { flag = 1; break; }
-      if (flag) continue;
-      return r_id;
+   for (int i = 0; i < vector->size; i++) {
+       flag = 0;
+       r_id = vector->data[i]->id;
+       if (room[r_id].cap >= (room[r_id].num_patients_allocated + room[r_id].occupants_cap)) continue;
+       for (j = 0; j < patients[p_id].num_incompatible_rooms; j++) {
+           if (r_id == patients[p_id].incompatible_room_ids[j]) {
+               flag = 1; break;
+           }
+       }
+
+       if (flag) continue;
+
+
+       //if no room was found in the associated gender array then look for a room in empty room array.
+
+       if (patients[p_id].assigned_room_no == -1) {
+           for (i = 0; i < v_empty->size; i++) {
+               r_id = v_empty->data[i]->id;
+               for (j = 0; j < patients[p_id].num_incompatible_rooms; ++j)
+                   if (r_id == patients[p_id].incompatible_room_ids[j]) { flag = 1; break; }
+               if (flag) continue;
+               Rooms* temp_room = removebyid(v_empty, r_id);
+               pushback(vector, &temp_room);
+
+               return r_id;
+           }
+       }
+       return -1;
    }
 
-   if (patients[p_id].assigned_room_no == -1) {
-      // start parsing the empty_rooms array as all the rooms of this gender are either incompatible to this patient 
-      // or their capacity has reached full
-      for (self = empty_rooms; self; self = self->next) {
-         r_id = self->pointer->id;
-         if (room[r_id].num_patients_allocated) {
-            // just to check whether our 3 room_gender_arrays are properly allocated or not
-            fprintf(stderr, "\nThe number of patients allocated is not 0 in empty_array");
-            exit(EXIT_FAILURE);
-         }
-         for (j = 0; j < patients[p_id].num_incompatible_rooms; ++j)
-            if (r_id == patients[p_id].incompatible_room_ids[j]) { flag = 1; break; }
-         if (flag) continue;
-         // now remove this room node from empty room array and append it in the associated gender array
-         if (self == empty_rooms) {
-             GenderRoom* temp = empty_rooms;
-            empty_rooms = empty_rooms->next;
-            //free(temp);
-            if(empty_rooms)
-            empty_rooms->prev = NULL;
-         }
-         else {
-            prev_ptr = self->prev;
-            prev_ptr->next = self->next;
-            self->next->prev = prev_ptr;
-            self->prev = NULL;
-            self->next = NULL;
-         }
-         // append self at head of the associated gender array, i.e. gender_head
-         gender_head = appendGenderRoomNode(gender_head, self);
-         return r_id;
-      }
-      return -1;
-   }
+   //for (self = gender_head; self; self = self->next) {
+   //   flag = 0;
+   //   // parse the gender_rooms array and for each room - 
+   //   // find its gender, capacity, num_patients_allocated and whether it is compatible to the patient at hand or not
+   //   r_id = self->pointer->id;
+   //   if (room[r_id].cap <= (room[r_id].num_patients_allocated + room[r_id].occupants_cap)) continue;
+   //   // check for compatibility
+   //   for (j = 0; j < patients[p_id].num_incompatible_rooms; ++j)
+   //      if (r_id == patients[p_id].incompatible_room_ids[j]) { flag = 1; break; }
+   //   if (flag) continue;
+   //   return r_id;
+   //}
+
+   //if (patients[p_id].assigned_room_no == -1) {
+   //   // start parsing the empty_rooms array as all the rooms of this gender are either incompatible to this patient 
+   //   // or their capacity has reached full
+   //   for (self = empty_rooms; self; self = self->next) {
+   //      r_id = self->pointer->id;
+   //      if (room[r_id].num_patients_allocated) {
+   //         // just to check whether our 3 room_gender_arrays are properly allocated or not
+   //         fprintf(stderr, "\nThe number of patients allocated is not 0 in empty_array");
+   //         exit(EXIT_FAILURE);
+   //      }
+   //      for (j = 0; j < patients[p_id].num_incompatible_rooms; ++j)
+   //         if (r_id == patients[p_id].incompatible_room_ids[j]) { flag = 1; break; }
+   //      if (flag) continue;
+   //      // now remove this room node from empty room array and append it in the associated gender array
+   //      if (self == empty_rooms) {
+   //          GenderRoom* temp = empty_rooms;
+   //         empty_rooms = empty_rooms->next;
+   //         //free(temp);
+   //         if(empty_rooms)
+   //         empty_rooms->prev = NULL;
+   //      }
+   //      else {
+   //         prev_ptr = self->prev;
+   //         prev_ptr->next = self->next;
+   //         self->next->prev = prev_ptr;
+   //         self->prev = NULL;
+   //         self->next = NULL;
+   //      }
+   //      // append self at head of the associated gender array, i.e. gender_head
+   //      gender_head = appendGenderRoomNode(gender_head, self);
+   //      return r_id;
+   //   }
+   //   return -1;
+  // }
 }
 
 void update_LOS_of_patients(int d) {
@@ -1958,9 +2089,12 @@ void update_LOS_of_patients(int d) {
       if (days_passed > 0) {
          // throw the occupant out
          room[r_id].occupants_cap--;
-         if (!room[r_id].occupants_cap && !room[r_id].num_patients_allocated)
-            // remove the room from the associated gender array and append at the head of the empty_array linked list
-            g ? removeAndAppendGenderRoom(r_id, gender_B_rooms) : removeAndAppendGenderRoom(r_id, gender_A_rooms);
+         if (!room[r_id].occupants_cap && !room[r_id].num_patients_allocated) {
+             // remove the room from the associated gender array and append at the head of the empty_array linked list
+             //g ? removeAndAppendGenderRoom(r_id, gender_B_rooms) : removeAndAppendGenderRoom(r_id, gender_A_rooms);
+             Rooms* temp_room = g ? removebyid(v_B, r_id) : removebyid(v_A, r_id);
+             pushback(v_empty, &temp_room);
+         }
       }
    }
 
@@ -1979,16 +2113,18 @@ void update_LOS_of_patients(int d) {
          if (admit_day != -1) { // if true - means the patient has been admitted.
             days_passed = d - admit_day;
             if (days_passed >= los) {
-               // release the patient
-               // remove this patient's data from everywhere, i.e. 
-               // from room (capacity, gender, age-mix)
-               // update the data in nurses array about this patient
-               room[r_id].num_patients_allocated--;
-               // ignore age-mix
-               // consider if the room is now empty then what will you do
-               if (!room[r_id].occupants_cap && !room[r_id].num_patients_allocated)
-                  // remove this room from the associated gender array and append it in empty_rooms array
-                  g ? removeAndAppendGenderRoom(r_id, gender_B_rooms) : removeAndAppendGenderRoom(r_id, gender_A_rooms);
+                // release the patient
+                // remove this patient's data from everywhere, i.e. 
+                // from room (capacity, gender, age-mix)
+                // update the data in nurses array about this patient
+                room[r_id].num_patients_allocated--;
+                // ignore age-mix
+                // consider if the room is now empty then what will you do
+                if (!room[r_id].occupants_cap && !room[r_id].num_patients_allocated) {
+                    // remove this room from the associated gender array and append it in empty_rooms array
+                    Rooms* temp_room = g ? removebyid(v_B, r_id) : removebyid(v_A, r_id);
+                    pushback(v_empty, &temp_room);
+                }
             }
          }
       }
@@ -2075,7 +2211,7 @@ OTs* admitMandatoryFromPQ(PriorityQueue* pq, int d, OTs** ot_data_arr, OTs* curr
                // assign this ot to this patient
                flag = 1;
                patients[p_id].assigned_ot = i;
-               ot[i].time_left -= s_duration;
+               ot[i].time_left[d-1] -= s_duration;
                break;
             }
          }
@@ -2092,7 +2228,7 @@ OTs* admitMandatoryFromPQ(PriorityQueue* pq, int d, OTs** ot_data_arr, OTs* curr
          current_ot->time_left[d-1] = current_ot->time_left[d-1] - s_duration;
       }
       // assign a room
-      r_id = patients[p_id].gen ? findSuitableRoom(p_id, gender_B_rooms) : findSuitableRoom(p_id, gender_A_rooms);
+      r_id = patients[p_id].gen ? findSuitableRoom(p_id, v_B): findSuitableRoom(p_id, v_A);
       if (r_id == -1) {
          // means there's no room in the gender_room_array and empty_array that is compatible with this patient
          // so in this case - put the patient in the PQ and move on
@@ -2109,7 +2245,7 @@ OTs* admitMandatoryFromPQ(PriorityQueue* pq, int d, OTs** ot_data_arr, OTs* curr
    }
    // transfer all the patients in the PQ which were taken out for admission but bcz of resource constraints could not be admitted.
    for (mand_ptr = head; mand_ptr; mand_ptr = mand_ptr->next)
-      insertNodeInPQ(pq, mand_ptr->node);
+      insertNodeInPQ(pq, mand_ptr->node); 
    freeMand_opt_PQ(head);
    return current_ot;
 }
@@ -2148,7 +2284,7 @@ OTs* admitOptionalFromPQ(PriorityQueue* pq, int d, OTs** ot_data_arr, OTs* curre
                // assign this ot to this patient
                flag = 1;
                patients[p_id].assigned_ot = i;
-               ot[i].time_left -= s_duration;
+               ot[i].time_left[d-1] -= s_duration;
                break;
             }
          }
@@ -2162,10 +2298,10 @@ OTs* admitOptionalFromPQ(PriorityQueue* pq, int d, OTs** ot_data_arr, OTs* curre
          // assign OT-------------------------------------------------------------------------------------------
          patients[p_id].assigned_ot = current_ot->id;
          // update the time left
-         current_ot->time_left -= s_duration;
+         current_ot->time_left [d-1] -= s_duration;
       }
       // assign a room
-      r_id = patients[p_id].gen ? findSuitableRoom(p_id, gender_B_rooms) : findSuitableRoom(p_id, gender_A_rooms);
+      r_id = patients[p_id].gen ? findSuitableRoom(p_id, v_B) : findSuitableRoom(p_id, v_A);
       if (r_id == -1) {
          // means there's no room in the gender_room_array and empty_array that is compatible with this patient
          // so in this case - put the patient in the PQ and move on
@@ -2212,7 +2348,15 @@ void admit_patients(int* room_gender_map, PriorityQueue* pq) {
    Node* head;
    OTs** ot_data_arr, * current_ot, * new_ot;
 
-   make_3_room_arrays(room_gender_map);
+   v_A = (RoomVector*)malloc(sizeof(RoomVector));
+   v_B = (RoomVector*)malloc(sizeof(RoomVector));
+   v_empty = (RoomVector*)malloc(sizeof(RoomVector));
+
+   //make_3_room_arrays(room_gender_map);
+   make_3_vectors(room_gender_map);
+   printVector("A", v_A);
+   printVector("B", v_B);
+   printVector("Empty", v_empty);
    // first, make another OT array (array of pointers to structures)
   // copy all the OT struct pointers to the ot_data_array.
    ot_data_arr = (OTs**)calloc(num_ots, sizeof(OTs*));
@@ -2274,12 +2418,10 @@ void admit_patients(int* room_gender_map, PriorityQueue* pq) {
          continue; // go to the next day and then admit these patients
       }
 
-      //head = sorted_mandatory_patients[d];
-      //max_surgeon_id = find_max_surgeon_id(head);
-      //len_surgeon_array = max_surgeon_id + 1;
-      //// Added 1 to max_surgeon_id cuz we need space for the nth (max_is) also, so we'll have to make the total length (n+1)
-      //s_data_arr = (Surgeon_data**)calloc(len_surgeon_array, sizeof(Surgeon_data*));
-      //sort_s_data_arr(s_data_arr, len_surgeon_array, head);
+     /* DONE -- EDGE CASE: 1. WHAT IF THE SURGEON IS NOT AVAILABLE BUT THE DUE DAY OF THE PATIENT
+     *                        IS TODAY THEN ADMIT HIM AT ANY COST.-- WE WILL ADMIT HIM TODAY ONLY EVEN 
+     *                        IF THE SURGEON IS NOT AVAILABLE.
+     */
 
       for (i = 0; i < len_surgeon_array; ++i)
          if (!s_data_arr[i]->isNull) {
@@ -2287,6 +2429,22 @@ void admit_patients(int* room_gender_map, PriorityQueue* pq) {
                // the surgeon is not available and hence add all the patients to the PQ
                for (k = 0; k < s_data_arr[i]->num_assigned_patients; ++k) {
                   temp_patient_id = s_data_arr[i]->assigned_patients[k];
+                  if (patients[temp_patient_id].mandatory && patients[temp_patient_id].surgery_due_day == d) {
+                      //admitting the patient at any cost
+                      s_duration = patients[temp_patient_id].surgery_duration;
+                      if (s_duration <= current_ot->time_left[d - 1]) {
+                          // no need to check now actually but check only to be safe
+                          // assign OT--------------------------------------------------------------------------------------------------
+                          patients[temp_patient_id].assigned_ot = current_ot->id;
+                          // update the time left
+                          current_ot->time_left[d-1] -= s_duration;
+                      }
+                      r_id = patients[temp_patient_id].gen ? findSuitableRoom(temp_patient_id, v_B) : findSuitableRoom(temp_patient_id, v_A);
+                      patients[temp_patient_id].assigned_room_no = r_id;
+                      room[r_id].num_patients_allocated += 1;
+                      patients[temp_patient_id].admission_day = d;
+                  }
+                  else
                   insertNodeInPQ(pq, makeHeapNode(patients[temp_patient_id].mandatory, 0, temp_patient_id));
                }
                continue;
@@ -2316,10 +2474,10 @@ void admit_patients(int* room_gender_map, PriorityQueue* pq) {
                      // assign OT--------------------------------------------------------------------------------------------------
                      patients[p_id].assigned_ot = current_ot->id;
                      // update the time left
-                     current_ot->time_left -= s_duration;
+                     current_ot->time_left[d-1] -= s_duration;
                   }
                   // assign a room
-                  r_id = patients[p_id].gen ? findSuitableRoom(p_id, gender_B_rooms) : findSuitableRoom(p_id, gender_A_rooms);
+                  r_id = patients[p_id].gen ? findSuitableRoom(p_id, v_B) : findSuitableRoom(p_id, v_A);
                   if (r_id == -1) {
                      // means there's no room in the gender_room_array and empty_array that is compatible with this patient
                      // so in this case - put the patient in the PQ and move on
@@ -2350,7 +2508,7 @@ void admit_patients(int* room_gender_map, PriorityQueue* pq) {
                   // otherwise - put into the PQ
                   if (current_ot) {
                      // write code here for admitting today's optional patients
-                     r_id = patients[p_id].gen ? findSuitableRoom(p_id, gender_B_rooms) : findSuitableRoom(p_id, gender_A_rooms);
+                     r_id = patients[p_id].gen ? findSuitableRoom(p_id, v_B) : findSuitableRoom(p_id, v_A);
                      if (r_id == -1) {
                         insertNodeInPQ(pq, makeHeapNode(patients[p_id].mandatory, 0, p_id));
                         continue;
@@ -2747,7 +2905,7 @@ void create_json_file(Patient* patients, int num_patients, Nurses* nurse, int nu
 
 int main(void) {
 
-   parse_json("data/instances/toy.json");
+   parse_json("data/instances/i01.json");
    PriorityQueue* pq;
 
    initialize_room_gender_map(&room_gender_map);
