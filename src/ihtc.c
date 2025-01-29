@@ -251,7 +251,7 @@ GenderRoom* makeGenderRoomNode(Rooms*);
 void free_s_data_arr(Surgeon_data**, int);
 void make_3_room_arrays(int*);
 void update_LOS_of_patients(int);
-int findSuitableRoom(int, GenderRoom*);
+int findSuitableRoom(int, RoomVector *);
 void sort_s_data_arr(Surgeon_data**, int, Node*);
 void sort_ot_data_arr(OTs**, int);
 int find_max_surgeon_id(Node*);
@@ -2196,22 +2196,22 @@ OTs* admitMandatoryFromPQ(PriorityQueue* pq, int d, OTs** ot_data_arr, OTs* curr
       s_duration = patients[p_id].surgery_duration;
       // assign available OT
       // first - select a suitable OT
-      if (!current_ot->time_left[d-1])
+      if (!current_ot->time_left[d])
          if (current_ot_index < num_ots)
             current_ot = ot_data_arr[current_ot_index++];
 
-      while (current_ot->time_left[d-1] < s_duration) {
+      while (current_ot->time_left[d] < s_duration) {
          if (current_ot_index == num_ots) { flag = 1; break; }
          current_ot = ot_data_arr[current_ot_index++];
       }
       if (flag) {
          flag = 0;
          for (i = 0; i < num_ots; ++i) {
-            if (ot[i].time_left[d-1] >= s_duration) {
+            if (ot[i].time_left[d] >= s_duration) {
                // assign this ot to this patient
                flag = 1;
                patients[p_id].assigned_ot = i;
-               ot[i].time_left[d-1] -= s_duration;
+               ot[i].time_left[d] -= s_duration;
                break;
             }
          }
@@ -2225,7 +2225,7 @@ OTs* admitMandatoryFromPQ(PriorityQueue* pq, int d, OTs** ot_data_arr, OTs* curr
          // assign OT--------------------------------------------------------------------------------------------------
          patients[p_id].assigned_ot = current_ot->id;
          // update the time left
-         current_ot->time_left[d-1] = current_ot->time_left[d-1] - s_duration;
+         current_ot->time_left[d] = current_ot->time_left[d] - s_duration;
       }
       // assign a room
       r_id = patients[p_id].gen ? findSuitableRoom(p_id, v_B): findSuitableRoom(p_id, v_A);
@@ -2269,22 +2269,22 @@ OTs* admitOptionalFromPQ(PriorityQueue* pq, int d, OTs** ot_data_arr, OTs* curre
       s_duration = patients[p_id].surgery_duration;
       // assign available OT
       // first - select a suitable OT
-      if (!current_ot->time_left[d-1])
+      if (!current_ot->time_left[d])
          if (current_ot_index != num_ots)
             current_ot = ot_data_arr[current_ot_index++];
 
-      while (current_ot->time_left[d-1] < s_duration) {
+      while (current_ot->time_left[d] < s_duration) {
          if (current_ot_index == num_ots) { flag = 1; break; }
          current_ot = ot_data_arr[current_ot_index++];
       }
       if (flag) {
          flag = 0;
          for (i = 0; i < num_ots; ++i) {
-            if (ot[i].time_left[d-1] >= s_duration) {
+            if (ot[i].time_left[d] >= s_duration) {
                // assign this ot to this patient
                flag = 1;
                patients[p_id].assigned_ot = i;
-               ot[i].time_left[d-1] -= s_duration;
+               ot[i].time_left[d] -= s_duration;
                break;
             }
          }
@@ -2298,7 +2298,7 @@ OTs* admitOptionalFromPQ(PriorityQueue* pq, int d, OTs** ot_data_arr, OTs* curre
          // assign OT-------------------------------------------------------------------------------------------
          patients[p_id].assigned_ot = current_ot->id;
          // update the time left
-         current_ot->time_left [d-1] -= s_duration;
+         current_ot->time_left [d] -= s_duration;
       }
       // assign a room
       r_id = patients[p_id].gen ? findSuitableRoom(p_id, v_B) : findSuitableRoom(p_id, v_A);
@@ -2368,11 +2368,11 @@ void admit_patients(int* room_gender_map, PriorityQueue* pq) {
       ot_data_arr[i] = ot + i;
 
    // ---------------------------------------------------------START ADMISSION------------------------------------------------------------
-   for (d = 1; d <= days; ++d) {
+   for (d = 0; d < days; ++d) {
       // update LOS for all patients
-      if (d > 1) update_LOS_of_patients(d);
+      if (d) update_LOS_of_patients(d);
 
-      sort_ot_data_arr(ot_data_arr, d-1);
+      sort_ot_data_arr(ot_data_arr, d);
       current_ot_index = 0;
       current_ot = ot_data_arr[0];
       flag = 0;
@@ -2387,7 +2387,7 @@ void admit_patients(int* room_gender_map, PriorityQueue* pq) {
       sort_s_data_arr(s_data_arr, len_surgeon_array, head);
 
       //incrementing the current ot while we get to an ot which is available that day
-      while (!current_ot->time_left[d-1]) {
+      while (!current_ot->time_left[d]) {
          if (current_ot_index == num_ots) { flag = 1; break; }
          current_ot = ot_data_arr[current_ot_index++];
       }
@@ -2407,7 +2407,7 @@ void admit_patients(int* room_gender_map, PriorityQueue* pq) {
 
       flag = 0;
       // admit the mandatory patients previously not admitted from the PQ
-      if (d > 1) current_ot = admitMandatoryFromPQ(pq, d, ot_data_arr, current_ot, current_ot_index);
+      if (d) current_ot = admitMandatoryFromPQ(pq, d, ot_data_arr, current_ot, current_ot_index);
       if (!current_ot) {
          for (i = 0; i < len_surgeon_array; ++i)
             if (!s_data_arr[i]->isNull)
@@ -2425,7 +2425,7 @@ void admit_patients(int* room_gender_map, PriorityQueue* pq) {
 
       for (i = 0; i < len_surgeon_array; ++i)
          if (!s_data_arr[i]->isNull) {
-            if (!surgeon[s_data_arr[i]->surgeon_id].time_left[d-1]) {
+            if (!surgeon[s_data_arr[i]->surgeon_id].time_left[d]) {
                // the surgeon is not available and hence add all the patients to the PQ
                for (k = 0; k < s_data_arr[i]->num_assigned_patients; ++k) {
                   temp_patient_id = s_data_arr[i]->assigned_patients[k];
@@ -2437,7 +2437,7 @@ void admit_patients(int* room_gender_map, PriorityQueue* pq) {
                           // assign OT--------------------------------------------------------------------------------------------------
                           patients[temp_patient_id].assigned_ot = current_ot->id;
                           // update the time left
-                          current_ot->time_left[d-1] -= s_duration;
+                          current_ot->time_left[d] -= s_duration;
                       }
                       r_id = patients[temp_patient_id].gen ? findSuitableRoom(temp_patient_id, v_B) : findSuitableRoom(temp_patient_id, v_A);
                       patients[temp_patient_id].assigned_room_no = r_id;
@@ -2458,7 +2458,7 @@ void admit_patients(int* room_gender_map, PriorityQueue* pq) {
                if (patients[p_id].mandatory) {
                   // assign available OT
                   // first - select a suitable OT
-                  while (current_ot->time_left[d-1] < s_duration) {
+                  while (current_ot->time_left[d] < s_duration) {
                      if (current_ot_index == num_ots) { flag = 1; break; }
                      current_ot = ot_data_arr[current_ot_index++];
                   }
@@ -2469,12 +2469,12 @@ void admit_patients(int* room_gender_map, PriorityQueue* pq) {
                      }
                      break;
                   }
-                  if (s_duration <= current_ot->time_left[d-1]) {
+                  if (s_duration <= current_ot->time_left[d]) {
                      // no need to check now actually but check only to be safe
                      // assign OT--------------------------------------------------------------------------------------------------
                      patients[p_id].assigned_ot = current_ot->id;
                      // update the time left
-                     current_ot->time_left[d-1] -= s_duration;
+                     current_ot->time_left[d] -= s_duration;
                   }
                   // assign a room
                   r_id = patients[p_id].gen ? findSuitableRoom(p_id, v_B) : findSuitableRoom(p_id, v_A);
@@ -2528,6 +2528,9 @@ void admit_patients(int* room_gender_map, PriorityQueue* pq) {
          }
       free_s_data_arr(s_data_arr, len_surgeon_array);
    }
+   /*freevector(v_A);
+   freevector(v_B);
+   freevector(v_empty);*/
 }
 
 

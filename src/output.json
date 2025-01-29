@@ -1,13 +1,13 @@
   "patients": [
       "id": "0",
-      "admission_day": -1,
-      "room": "r-1",
-      "operating_theater": "t-1"
+      "admission_day": 4,
+      "room": "r0",
+      "operating_theater": "t0"
     },
       "id": "1",
-      "admission_day": -1,
-      "room": "r-1",
-      "operating_theater": "t-1"
+      "admission_day": 10,
+      "room": "r0",
+      "operating_theater": "t1"
     },
       "id": "2",
       "admission_day": -1,
@@ -15,9 +15,9 @@
       "operating_theater": "t-1"
     },
       "id": "3",
-      "admission_day": 2,
-      "room": "r1",
-      "operating_theater": "t0"
+      "admission_day": -1,
+      "room": "r-1",
+      "operating_theater": "t-1"
     },
       "id": "4",
       "admission_day": -1,
@@ -27,18 +27,123 @@
       "id": "5",
       "admission_day": -1,
       "room": "r-1",
-      "operating_theater": "t0"
+      "operating_theater": "t-1"
     },
       "id": "6",
-      "admission_day": 2,
-      "room": "r2",
+      "admission_day": -1,
+      "room": "r-1",
+      "operating_theater": "t-1"
+    },
+      "id": "7",
+      "admission_day": 8,
+      "room": "r0",
+      "operating_theater": "t1"
+    },
+      "id": "8",
+      "admission_day": -1,
+      "room": "r-1",
+      "operating_theater": "t-1"
+    },
+      "id": "9",
+      "admission_day": -1,
+      "room": "r-1",
+      "operating_theater": "t-1"
+    },
+      "id": "10",
+      "admission_day": -1,
+      "room": "r-1",
+      "operating_theater": "t-1"
+    },
+      "id": "11",
+      "admission_day": -1,
+      "room": "r-1",
+      "operating_theater": "t-1"
+    },
+      "id": "12",
+      "admission_day": -1,
+      "room": "r-1",
+      "operating_theater": "t-1"
+    },
+      "id": "13",
+      "admission_day": 3,
+      "room": "r0",
+      "operating_theater": "t1"
+    },
+      "id": "14",
+      "admission_day": 3,
+      "room": "r0",
+      "operating_theater": "t1"
+    },
+      "id": "15",
+      "admission_day": -1,
+      "room": "r-1",
+      "operating_theater": "t-1"
+    },
+      "id": "16",
+      "admission_day": -1,
+      "room": "r-1",
+      "operating_theater": "t-1"
+    },
+      "id": "17",
+      "admission_day": -1,
+      "room": "r-1",
+      "operating_theater": "t-1"
+    },
+      "id": "18",
+      "admission_day": 10,
+      "room": "r0",
+      "operating_theater": "t1"
+    },
+      "id": "19",
+      "admission_day": -1,
+      "room": "r-1",
+      "operating_theater": "t-1"
+    },
+      "id": "20",
+      "admission_day": -1,
+      "room": "r-1",
+      "operating_theater": "t-1"
+    },
+      "id": "21",
+      "admission_day": 4,
+      "room": "r0",
+      "operating_theater": "t0"
+    },
+      "id": "22",
+      "admission_day": -1,
+      "room": "r-1",
+      "operating_theater": "t-1"
+    },
+      "id": "23",
+      "admission_day": -1,
+      "room": "r-1",
+      "operating_theater": "t-1"
+    },
+      "id": "24",
+      "admission_day": -1,
+      "room": "r-1",
+      "operating_theater": "t-1"
+    },
+      "id": "25",
+      "admission_day": -1,
+      "room": "r-1",
+      "operating_theater": "t-1"
+    },
+      "id": "26",
+      "admission_day": 3,
+      "room": "r0",
+      "operating_theater": "t0"
+    },
+      "id": "27",
+      "admission_day": 3,
+      "room": "r0",
       "operating_theater": "t0"
     }
   ],
   "nurses": [
     {
       "id": "n0",
-      "skill_level": 0,
+      "skill_level": 2,
       "assignments": [
         {
           "day": 0,
@@ -47,26 +152,14 @@
           ]
         },
         {
-          "day": 3,
-          "shift": "late",
+          "day": 2,
+          "shift": "early",
           "rooms": [
           ]
         },
         {
-          "day": 5,
-          "shift": "night",
-          "rooms": [
-          ]
-        }
-      ]
-    },
-    {
-      "id": "n1",
-      "skill_level": 0,
-      "assignments": [
-        {
-          "day": 1,
-          "shift": "night",
+          "day": 3,
+          "shift": "early",
           "rooms": [
           ]
         },
@@ -77,7 +170,121 @@
           ]
         },
         {
+          "day": 5,
+          "shift": "late",
+          "rooms": [
+          ]
+        },
+        {
           "day": 6,
+          "shift": "night",
+          "rooms": [
+          ]
+        },
+        {
+          "day": 8,
+          "shift": "early",
+          "rooms": [
+          ]
+        },
+        {
+          "day": 9,
+          "shift": "late",
+          "rooms": [
+          ]
+        },
+        {
+          "day": 10,
+          "shift": "late",
+          "rooms": [
+          ]
+        },
+        {
+          "day": 11,
+          "shift": "late",
+          "rooms": [
+          ]
+        },
+        {
+          "day": 12,
+          "shift": "late",
+          "rooms": [
+          ]
+        }
+      ]
+    },
+    {
+      "id": "n1",
+      "skill_level": 1,
+      "assignments": [
+        {
+          "day": 0,
+          "shift": "late",
+          "rooms": [
+          ]
+        },
+        {
+          "day": 2,
+          "shift": "early",
+          "rooms": [
+          ]
+        },
+        {
+          "day": 3,
+          "shift": "early",
+          "rooms": [
+          ]
+        },
+        {
+          "day": 4,
+          "shift": "night",
+          "rooms": [
+          ]
+        },
+        {
+          "day": 5,
+          "shift": "night",
+          "rooms": [
+          ]
+        },
+        {
+          "day": 6,
+          "shift": "night",
+          "rooms": [
+          ]
+        },
+        {
+          "day": 8,
+          "shift": "late",
+          "rooms": [
+          ]
+        },
+        {
+          "day": 9,
+          "shift": "late",
+          "rooms": [
+          ]
+        },
+        {
+          "day": 10,
+          "shift": "night",
+          "rooms": [
+          ]
+        },
+        {
+          "day": 11,
+          "shift": "night",
+          "rooms": [
+          ]
+        },
+        {
+          "day": 12,
+          "shift": "night",
+          "rooms": [
+          ]
+        },
+        {
+          "day": 13,
           "shift": "night",
           "rooms": [
           ]
@@ -86,23 +293,29 @@
     },
     {
       "id": "n2",
-      "skill_level": 1,
+      "skill_level": 0,
       "assignments": [
         {
           "day": 0,
-          "shift": "late",
+          "shift": "early",
+          "rooms": [
+          ]
+        },
+        {
+          "day": 1,
+          "shift": "early",
           "rooms": [
           ]
         },
         {
           "day": 2,
-          "shift": "early",
+          "shift": "late",
           "rooms": [
           ]
         },
         {
           "day": 3,
-          "shift": "early",
+          "shift": "late",
           "rooms": [
           ]
         },
@@ -113,8 +326,44 @@
           ]
         },
         {
+          "day": 5,
+          "shift": "late",
+          "rooms": [
+          ]
+        },
+        {
           "day": 6,
           "shift": "late",
+          "rooms": [
+          ]
+        },
+        {
+          "day": 7,
+          "shift": "late",
+          "rooms": [
+          ]
+        },
+        {
+          "day": 9,
+          "shift": "early",
+          "rooms": [
+          ]
+        },
+        {
+          "day": 10,
+          "shift": "early",
+          "rooms": [
+          ]
+        },
+        {
+          "day": 11,
+          "shift": "early",
+          "rooms": [
+          ]
+        },
+        {
+          "day": 13,
+          "shift": "early",
           "rooms": [
           ]
         }
@@ -122,11 +371,83 @@
     },
     {
       "id": "n3",
-      "skill_level": 1,
+      "skill_level": 0,
       "assignments": [
         {
           "day": 0,
+          "shift": "night",
+          "rooms": [
+          ]
+        },
+        {
+          "day": 2,
+          "shift": "late",
+          "rooms": [
+          ]
+        },
+        {
+          "day": 3,
+          "shift": "night",
+          "rooms": [
+          ]
+        },
+        {
+          "day": 5,
           "shift": "early",
+          "rooms": [
+          ]
+        },
+        {
+          "day": 6,
+          "shift": "early",
+          "rooms": [
+          ]
+        },
+        {
+          "day": 7,
+          "shift": "early",
+          "rooms": [
+          ]
+        },
+        {
+          "day": 8,
+          "shift": "night",
+          "rooms": [
+          ]
+        },
+        {
+          "day": 10,
+          "shift": "early",
+          "rooms": [
+          ]
+        },
+        {
+          "day": 11,
+          "shift": "early",
+          "rooms": [
+          ]
+        },
+        {
+          "day": 12,
+          "shift": "early",
+          "rooms": [
+          ]
+        },
+        {
+          "day": 13,
+          "shift": "early",
+          "rooms": [
+          ]
+        }
+      ]
+    },
+    {
+      "id": "n4",
+      "skill_level": 2,
+      "assignments": [
+        {
+          "day": 0,
+          "shift": "night",
           "rooms": [
           ]
         },
@@ -137,68 +458,56 @@
           ]
         },
         {
-          "day": 3,
-          "shift": "early",
-          "rooms": [
-          ]
-        },
-        {
-          "day": 4,
-          "shift": "night",
-          "rooms": [
-          ]
-        },
-        {
-          "day": 5,
-          "shift": "night",
-          "rooms": [
-          ]
-        },
-        {
-          "day": 6,
-          "shift": "night",
-          "rooms": [
-          ]
-        }
-      ]
-    },
-    {
-      "id": "n4",
-      "skill_level": 0,
-      "assignments": [
-        {
-          "day": 0,
-          "shift": "late",
-          "rooms": [
-          ]
-        },
-        {
           "day": 2,
-          "shift": "early",
+          "shift": "night",
           "rooms": [
           ]
         },
         {
           "day": 3,
-          "shift": "early",
-          "rooms": [
-          ]
-        },
-        {
-          "day": 4,
-          "shift": "early",
+          "shift": "night",
           "rooms": [
           ]
         },
         {
           "day": 5,
-          "shift": "late",
+          "shift": "early",
           "rooms": [
           ]
         },
         {
           "day": 6,
+          "shift": "early",
+          "rooms": [
+          ]
+        },
+        {
+          "day": 8,
           "shift": "late",
+          "rooms": [
+          ]
+        },
+        {
+          "day": 9,
+          "shift": "night",
+          "rooms": [
+          ]
+        },
+        {
+          "day": 10,
+          "shift": "night",
+          "rooms": [
+          ]
+        },
+        {
+          "day": 11,
+          "shift": "night",
+          "rooms": [
+          ]
+        },
+        {
+          "day": 13,
+          "shift": "early",
           "rooms": [
           ]
         }
@@ -222,12 +531,60 @@
         },
         {
           "day": 2,
-          "shift": "early",
+          "shift": "late",
+          "rooms": [
+          ]
+        },
+        {
+          "day": 3,
+          "shift": "late",
+          "rooms": [
+          ]
+        },
+        {
+          "day": 4,
+          "shift": "night",
           "rooms": [
           ]
         },
         {
           "day": 6,
+          "shift": "late",
+          "rooms": [
+          ]
+        },
+        {
+          "day": 7,
+          "shift": "night",
+          "rooms": [
+          ]
+        },
+        {
+          "day": 8,
+          "shift": "night",
+          "rooms": [
+          ]
+        },
+        {
+          "day": 9,
+          "shift": "night",
+          "rooms": [
+          ]
+        },
+        {
+          "day": 11,
+          "shift": "early",
+          "rooms": [
+          ]
+        },
+        {
+          "day": 12,
+          "shift": "early",
+          "rooms": [
+          ]
+        },
+        {
+          "day": 13,
           "shift": "late",
           "rooms": [
           ]
@@ -239,19 +596,61 @@
       "skill_level": 1,
       "assignments": [
         {
-          "day": 0,
-          "shift": "late",
-          "rooms": [
-          ]
-        },
-        {
           "day": 1,
-          "shift": "late",
+          "shift": "early",
           "rooms": [
           ]
         },
         {
           "day": 2,
+          "shift": "night",
+          "rooms": [
+          ]
+        },
+        {
+          "day": 4,
+          "shift": "early",
+          "rooms": [
+          ]
+        },
+        {
+          "day": 5,
+          "shift": "late",
+          "rooms": [
+          ]
+        },
+        {
+          "day": 7,
+          "shift": "early",
+          "rooms": [
+          ]
+        },
+        {
+          "day": 9,
+          "shift": "early",
+          "rooms": [
+          ]
+        },
+        {
+          "day": 10,
+          "shift": "early",
+          "rooms": [
+          ]
+        },
+        {
+          "day": 11,
+          "shift": "late",
+          "rooms": [
+          ]
+        },
+        {
+          "day": 12,
+          "shift": "late",
+          "rooms": [
+          ]
+        },
+        {
+          "day": 13,
           "shift": "night",
           "rooms": [
           ]
@@ -260,17 +659,17 @@
     },
     {
       "id": "n7",
-      "skill_level": 1,
+      "skill_level": 0,
       "assignments": [
         {
           "day": 0,
-          "shift": "late",
+          "shift": "early",
           "rooms": [
           ]
         },
         {
           "day": 1,
-          "shift": "night",
+          "shift": "late",
           "rooms": [
           ]
         },
@@ -281,13 +680,43 @@
           ]
         },
         {
-          "day": 3,
-          "shift": "night",
+          "day": 4,
+          "shift": "early",
           "rooms": [
           ]
         },
         {
-          "day": 5,
+          "day": 6,
+          "shift": "late",
+          "rooms": [
+          ]
+        },
+        {
+          "day": 7,
+          "shift": "late",
+          "rooms": [
+          ]
+        },
+        {
+          "day": 9,
+          "shift": "early",
+          "rooms": [
+          ]
+        },
+        {
+          "day": 10,
+          "shift": "late",
+          "rooms": [
+          ]
+        },
+        {
+          "day": 12,
+          "shift": "early",
+          "rooms": [
+          ]
+        },
+        {
+          "day": 13,
           "shift": "late",
           "rooms": [
           ]
@@ -299,50 +728,8 @@
       "skill_level": 2,
       "assignments": [
         {
-          "day": 0,
-          "shift": "late",
-          "rooms": [
-          ]
-        },
-        {
-          "day": 2,
-          "shift": "early",
-          "rooms": [
-          ]
-        },
-        {
-          "day": 4,
-          "shift": "early",
-          "rooms": [
-          ]
-        },
-        {
-          "day": 5,
-          "shift": "early",
-          "rooms": [
-          ]
-        },
-        {
-          "day": 6,
-          "shift": "early",
-          "rooms": [
-          ]
-        }
-      ]
-    },
-    {
-      "id": "n9",
-      "skill_level": 1,
-      "assignments": [
-        {
-          "day": 0,
-          "shift": "early",
-          "rooms": [
-          ]
-        },
-        {
-          "day": 2,
-          "shift": "late",
+          "day": 1,
+          "shift": "night",
           "rooms": [
           ]
         },
@@ -353,13 +740,37 @@
           ]
         },
         {
-          "day": 4,
+          "day": 5,
+          "shift": "night",
+          "rooms": [
+          ]
+        },
+        {
+          "day": 7,
+          "shift": "early",
+          "rooms": [
+          ]
+        },
+        {
+          "day": 8,
+          "shift": "early",
+          "rooms": [
+          ]
+        },
+        {
+          "day": 9,
           "shift": "late",
           "rooms": [
           ]
         },
         {
-          "day": 5,
+          "day": 10,
+          "shift": "night",
+          "rooms": [
+          ]
+        },
+        {
+          "day": 12,
           "shift": "late",
           "rooms": [
           ]
@@ -367,30 +778,60 @@
       ]
     },
     {
-      "id": "n10",
-      "skill_level": 0,
+      "id": "n9",
+      "skill_level": 2,
       "assignments": [
         {
-          "day": 0,
-          "shift": "night",
-          "rooms": [
-          ]
-        },
-        {
-          "day": 2,
-          "shift": "night",
-          "rooms": [
-          ]
-        },
-        {
-          "day": 4,
+          "day": 1,
           "shift": "late",
           "rooms": [
           ]
         },
         {
-          "day": 6,
+          "day": 4,
           "shift": "early",
+          "rooms": [
+          ]
+        },
+        {
+          "day": 7,
+          "shift": "late",
+          "rooms": [
+          ]
+        },
+        {
+          "day": 12,
+          "shift": "night",
+          "rooms": [
+          ]
+        }
+      ]
+    },
+    {
+      "id": "n10",
+      "skill_level": 2,
+      "assignments": [
+        {
+          "day": 8,
+          "shift": "early",
+          "rooms": [
+          ]
+        },
+        {
+          "day": 13,
+          "shift": "late",
+          "rooms": [
+          ]
+        }
+      ]
+    },
+    {
+      "id": "n11",
+      "skill_level": 1,
+      "assignments": [
+        {
+          "day": 7,
+          "shift": "night",
           "rooms": [
           ]
         }
