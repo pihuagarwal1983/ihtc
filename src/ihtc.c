@@ -1750,7 +1750,6 @@ int findSuitableRoom(int p_id, RoomVector* vector) {
    char* age = patients[p_id].age_group;
   // GenderRoom* self, * prev_ptr, * temp;
 
-   
 
    for (int i = 0; i < vector->size; i++) {
        flag = 0;
@@ -2003,7 +2002,7 @@ OTs* admitMandatoryFromPQ(PriorityQueue* pq, int d, OTs** ot_data_arr, OTs* curr
    // transfer all the patients in the PQ which were taken out for admission but bcz of resource constraints could not be admitted.
    for (int i = 0; i < vector->size; i++)
         insertNodeInPQ(pq, *vector->data[i]);
-  
+
    return current_ot;
 }
 
