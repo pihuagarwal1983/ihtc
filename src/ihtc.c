@@ -7,6 +7,7 @@
 #include <math.h>
 #include <time.h>
 #include "cJSON.h"
+#include <direct.h>    
 //#include <cassert>
 
 #define ASSERT(condition, message) \
@@ -2377,15 +2378,19 @@ void admit_patients(int* room_gender_map, PriorityQueue* pq) {
 
                      if (current_ot_index == num_ots) {
                          current_ot_index--;
+                         current_ot = ot_data_arr[current_ot_index];
                      }
-
-                     patients[p_id].admission_day = d;
-                     patients[p_id].assigned_room_no = r_id;
-                     patients[p_id].assigned_ot = current_ot->id;
-                     room[r_id].num_patients_allocated += 1;
-                     //int value = current_ot->time_left[d] - patients[p_id].surgery_duration;
-                     current_ot->time_left[d] = current_ot->time_left[d] - patients[p_id].surgery_duration;
-
+                     if (current_ot->time_left[d]) {
+                         patients[p_id].admission_day = d;
+                         patients[p_id].assigned_room_no = r_id;
+                         patients[p_id].assigned_ot = current_ot->id;
+                         room[r_id].num_patients_allocated += 1;
+                         //int value = current_ot->time_left[d] - patients[p_id].surgery_duration;
+                         current_ot->time_left[d] = current_ot->time_left[d] - patients[p_id].surgery_duration;
+                     }
+                     else {
+                         insertNodeInPQ(pq, makeHeapNode(p_id, patients[p_id].mandatory, patients[p_id].surgery_due_day, 0));
+                     }
                   }
                   else {
                      for (k = 0; k < s_data_arr[i]->num_assigned_patients; ++k) {
@@ -2504,7 +2509,7 @@ void allocate_dm_nurses_availability() {
    }
    for (int i = 0; i < days * 3; ++i) {
       dm_nurses_availability[i] = NULL;  // Initialize each slot to NULL
-      max_load_updated[i] = (int*)calloc(days * 3, sizeof(int));
+     // max_load_updated[i] = (int*)calloc(days * 3, sizeof(int));
    }
    if (!max_load_updated) {
       perror("Failed to allocate memory for max_load_updated");
@@ -2715,13 +2720,24 @@ void print_max_loadd_updated() {
 }
 
 //..................................FUNCTION FOR OUTPUT JSON FILE....................
-void create_json_file(Patient* patients, int num_patients, Nurses* nurse, int num_nurses) {
+void create_json_file(Patient* patients, int num_patients, Nurses* nurse, int num_nurses, const char* instance_name, const char* output_folder) {
    // Open file in write mode
-   FILE* file = fopen("output.json", "w");
-   if (file == NULL) {
-      perror("Error opening file");
-      return;
-   }
+#ifdef _WIN32
+    if (_mkdir(output_folder) != 0) perror("Error creating folder");
+#else
+    if (mkdir(output_folder, 0777) != 0) perror("Error creating folder");
+#endif
+
+
+    char filepath[200];
+   snprintf(filepath, sizeof(filepath), "D:/major_code/build/output/%s_solution.json", instance_name);
+
+    FILE* file = fopen(filepath, "w");
+    if (file == NULL) {
+        perror("Error opening file");
+        return;
+    }
+
 
    // Add patients array
    fprintf(file, "  \"patients\": [\n");
@@ -2774,12 +2790,12 @@ void create_json_file(Patient* patients, int num_patients, Nurses* nurse, int nu
    // Close the file
    fclose(file);
 
-   printf("JSON file 'output.json' created successfully.\n");
+   printf("JSON file saved at: %s/%s_solution.json\n", output_folder, instance_name);
 }
 
 int main(void) {
 
-   parse_json("data/instances/i25.json");
+   parse_json("data/instances/i30.json");
    PriorityQueue* pq;
 
    initialize_room_gender_map(&room_gender_map);
@@ -2796,18 +2812,20 @@ int main(void) {
    sort_optional_patients_on_release_day(optional_patients, optional_count);
    append_optional_to_mandatory(sorted_mandatory_patients, sorted_optional_patients);
    //print_sorted_optional_array();
-   create_dm_nurses_availability();
-   sorting_nurse_id_max_load();
    //print_ots(ot);
    admit_patients(room_gender_map, pq);
-   //nurse_assignments();
+   create_dm_nurses_availability();
+   sorting_nurse_id_max_load();
+   initialize_rooms_req(num_rooms);
+   create_rooms_req();
+   nurse_assignments();
 
    //print_dm_nurses();
 
   // print_mandatory_patients();
     //print_sorted_mandatory_array();
     //print_sorted_mandatory_patients();
-   create_json_file(patients , num_patients , nurses , num_nurses);
+   create_json_file(patients , num_patients , nurses , num_nurses,"i30","D:/major_code/build/output");
    // Use the parsed data in your algorithm
    // int *surgery_time[num_surgeons][days];
    // printf("Weights:\n");
