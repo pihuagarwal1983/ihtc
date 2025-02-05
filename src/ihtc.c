@@ -1916,30 +1916,24 @@ typedef struct {
     HeapNode** data;
     int size;
     int capacity;
-}Mand_opt_PQ;
+} Mand_opt_PQ;
 
 void init_Mand_opt_PQ(Mand_opt_PQ* vector, int initial_cap) {
-    HeapNode* data = (HeapNode**)calloc(initial_cap, sizeof(HeapNode *));
-    if (data) {
-        vector->data = data;
+    vector->data = (HeapNode**)calloc(initial_cap, sizeof(HeapNode*));
+    if (!vector->data) {
+        ASSERT(!vector->data, "No memory allocated for Mand_opt_PQ\n");
     }
-    else {
-        ASSERT(!data, "No memory allocated for Mand_opt_PQ\n");
-    }
-
     vector->capacity = initial_cap;
     vector->size = 0;
 }
 
 void resizevector(Mand_opt_PQ* vector) {
     vector->capacity *= 2;
-    HeapNode* data = (HeapNode**)realloc(vector->data, vector->capacity * sizeof(HeapNode*));
-    if (data) {
-        vector->data = data;
-    }
-    else {
+    HeapNode** data = (HeapNode**)realloc(vector->data, vector->capacity * sizeof(HeapNode*));
+    if (!data) {
         ASSERT(!data, "No memory allocated for the Mand_opt_PQ.\n");
     }
+    vector->data = data;
 }
 
 void pushback_Mand_Opt_PQ(Mand_opt_PQ* vector, HeapNode* node) {
@@ -1950,21 +1944,24 @@ void pushback_Mand_Opt_PQ(Mand_opt_PQ* vector, HeapNode* node) {
 }
 
 HeapNode* pop_Mand_opt_PQ(Mand_opt_PQ* vector) {
-    HeapNode* node = (vector->data[vector->size--]);
-    return node;
+    if (vector->size == 0) {
+        return NULL;  // Avoid popping from an empty vector
+    }
+    return vector->data[--vector->size];  // Decrement size after access
 }
 
 OTs* admitFromPQ(PriorityQueue* pq, int d, OTs** ot_data_arr, OTs* current_ot, int current_ot_index, int flag_opt) {
-    HeapNode node;
+    HeapNode* node;
     int i, j, p_id, flag, r_id, s_duration, p_counter;
+
     Mand_opt_PQ* vector = (Mand_opt_PQ*)malloc(sizeof(Mand_opt_PQ));
     init_Mand_opt_PQ(vector, 20);
 
     if (flag_opt) {
-        for (i = 0, node = pq->data[0]; node.mandatory; node = pq->data[++i]) {
-            if (!pq->current_size) break;
-            node = extractMaxFromPQ(pq);
-            pushback_Mand_Opt_PQ(vector, &node);
+        for (i = 0; pq->current_size > 0; i++) {
+            node = (HeapNode*)malloc(sizeof(HeapNode));  // Allocate new node
+            *node = extractMaxFromPQ(pq);  // Copy extracted node data
+            pushback_Mand_Opt_PQ(vector, node);
         }
     }
 
@@ -1972,8 +1969,9 @@ OTs* admitFromPQ(PriorityQueue* pq, int d, OTs** ot_data_arr, OTs* current_ot, i
         if (!flag_opt && !(pq->data[p_counter].mandatory))
             continue;
         else {
-            node = extractMaxFromPQ(pq);
-            p_id = node.patient_id;
+            node = (HeapNode*)malloc(sizeof(HeapNode));  // Allocate new node
+            *node = extractMaxFromPQ(pq);  // Copy extracted node data
+            p_id = node->patient_id;
             s_duration = patients[p_id].surgery_duration;
 
             while (!current_ot->time_left[d] || current_ot->time_left[d] < s_duration) {
@@ -1989,13 +1987,13 @@ OTs* admitFromPQ(PriorityQueue* pq, int d, OTs** ot_data_arr, OTs* current_ot, i
             }
 
             if (flag) {
-                pushback_Mand_Opt_PQ(vector, &node);
+                pushback_Mand_Opt_PQ(vector, node);
                 continue;
             }
             else {
                 r_id = patients[p_id].gen ? findSuitableRoom(p_id, v_B) : findSuitableRoom(p_id, v_A);
                 if (r_id == -1) {
-                    pushback_Mand_Opt_PQ(vector, &node);
+                    pushback_Mand_Opt_PQ(vector, node);
                     continue;
                 }
                 else {
@@ -2007,149 +2005,150 @@ OTs* admitFromPQ(PriorityQueue* pq, int d, OTs** ot_data_arr, OTs* current_ot, i
                 }
             }
         }
-
-        
     }
+
     for (int i = 0; i < vector->size; i++) {
         insertNodeInPQ(pq, *(vector->data[i]));
-        // printPriorityQueue(pq);  printf("\n2013");
-        printf("\n2014");
+        free(vector->data[i]);  // Free dynamically allocated HeapNode
     }
+    free(vector->data);  // Free vector data array
+    free(vector);  // Free vector
+
     return current_ot;
 }
 
-OTs* admitMandatoryFromPQ(PriorityQueue* pq, int d, OTs** ot_data_arr, OTs* current_ot, int current_ot_index) {
-   // this function will admit patients from the PQ (who could not be admitted before bcz of some reason)
-   HeapNode self, node;
-   Mand_opt_PQ * vector = (Mand_opt_PQ*)malloc(sizeof(Mand_opt_PQ));
-   init_Mand_opt_PQ(vector, 20);
-   int i, j, p_id, flag, delay, r_id, s_duration, ot_id, p_counter, ot_counter, temp;
-
-   for (p_counter = 0, flag = 0; (p_counter < pq->current_size && pq->data[p_counter].mandatory); ++p_counter) {
-      node = extractMaxFromPQ(pq);
-      p_id = node.patient_id;
-      s_duration = patients[p_id].surgery_duration;
-      // assign available OT
-      // first - select a suitable OT
-      if (!current_ot->time_left[d])
-         if (current_ot_index < num_ots)
-            current_ot = ot_data_arr[current_ot_index++];
-
-      while (current_ot->time_left[d] < s_duration) {
-         if (current_ot_index == num_ots) { flag = 1; break; }
-         current_ot = ot_data_arr[current_ot_index++];
-      }
-      if (flag) {
-         flag = 0;
-         for (i = 0; i < num_ots; ++i) {
-            if (ot[i].time_left[d] >= s_duration) {
-               // assign this ot to this patient
-               flag = 1;
-               patients[p_id].assigned_ot = i;
-               ot[i].time_left[d] -= s_duration;
-               break;
-            }
-         }
-         // that means no ot was assigned
-         if (!flag) {
-             pushback_Mand_Opt_PQ(&node, vector);
-            return NULL;
-         }
-      }
-      else {
-         // assign OT--------------------------------------------------------------------------------------------------
-         patients[p_id].assigned_ot = current_ot->id;
-         // update the time left
-         current_ot->time_left[d] = current_ot->time_left[d] - s_duration;
-      }
-      // assign a room
-      r_id = patients[p_id].gen ? findSuitableRoom(p_id, v_B): findSuitableRoom(p_id, v_A);
-      if (r_id == -1) {
-         // means there's no room in the gender_room_array and empty_array that is compatible with this patient
-         // so in this case - put the patient in the PQ and move on
-         insertNodeInPQ(pq, makeHeapNode(p_id , patients[p_id].mandatory, patients[p_id].surgery_due_day, node.delay));
-         //printPriorityQueue(pq);
-         printf("\n2071");
-         //head = insertNodeInMand_opt_PQ(head, makeMand_opt_PQNode(node));
-         break;
-      }
-      else {
-         patients[p_id].assigned_room_no = r_id;
-         room[r_id].num_patients_allocated++;
-      }
-      // assign admission day
-      patients[p_id].admission_day = d;
-   }
-   // transfer all the patients in the PQ which were taken out for admission but bcz of resource constraints could not be admitted.
-   for (int i = 0; i < vector->size; i++)
-        insertNodeInPQ(pq, *vector->data[i]);
-
-   return current_ot;
-}
-
-OTs* admitOptionalFromPQ(PriorityQueue* pq, int d, OTs** ot_data_arr, OTs* current_ot) {
-    int i, p_id, s_id, s_duration, flag = 0, r_id;
-    HeapNode node;
-    Mand_opt_PQ* vector = (Mand_opt_PQ*)malloc(sizeof(Mand_opt_PQ));
-    init_Mand_opt_PQ(vector, 20);
-
-    // Extract mandatory patients from PQ and store them
-    for (i = 0, node = pq->data[0]; node.mandatory; node = pq->data[++i]) {
-        node = extractMaxFromPQ(pq);
-        pushback_Mand_Opt_PQ(vector, &node);
-    }
-
-    // Process optional patients
-    for (i = 0, node = pq->data[0]; i < pq->current_size; node = pq->data[i++]) {
-        node = extractMaxFromPQ(pq);
-        p_id = node.patient_id;
-        s_duration = patients[p_id].surgery_duration;
-
-        // Assign available OT
-        if (current_ot && !current_ot->time_left[d]) {
-            if (current_ot_index < num_ots)
-                current_ot = ot_data_arr[current_ot_index++];
-        }
-
-        // Select a suitable OT
-        while (current_ot_index < num_ots - 1) {
-            current_ot = ot_data_arr[current_ot_index];
-            if (!current_ot) {
-                flag = 1;
-                break;
-            }
-            if (current_ot->time_left[d] >= s_duration) {
-                break;
-            }
-            current_ot_index++;
-        }
-
-        if (flag) {
-            pushback_Mand_Opt_PQ(vector, &node);
-        }
-        else {
-            r_id = patients[p_id].gen ? findSuitableRoom(p_id, v_B) : findSuitableRoom(p_id, v_A);
-            if (r_id == -1 || current_ot->time_left[d] < s_duration) {
-                pushback_Mand_Opt_PQ(vector, &node);
-                continue;
-            }
-            else {
-                patients[p_id].assigned_room_no = r_id;
-                patients[p_id].assigned_ot = current_ot->id;
-                room[r_id].num_patients_allocated++;
-                current_ot->time_left[d] -= s_duration;
-                patients[p_id].admission_day = d;
-            }
-        }
-    }
-
-    // Reinsert unassigned patients into the PQ
-    for (int i = 0; i < vector->size; i++) {
-        insertNodeInPQ(pq, *vector->data[i]);
-    }
-
-    return current_ot;
-}
+//OTs* admitMandatoryFromPQ(PriorityQueue* pq, int d, OTs** ot_data_arr, OTs* current_ot, int current_ot_index) {
+//   // this function will admit patients from the PQ (who could not be admitted before bcz of some reason)
+//   HeapNode self, node;
+//   Mand_opt_PQ * vector = (Mand_opt_PQ*)malloc(sizeof(Mand_opt_PQ));
+//   init_Mand_opt_PQ(vector, 20);
+//   int i, j, p_id, flag, delay, r_id, s_duration, ot_id, p_counter, ot_counter, temp;
+//
+//   for (p_counter = 0, flag = 0; (p_counter < pq->current_size && pq->data[p_counter].mandatory); ++p_counter) {
+//      node = extractMaxFromPQ(pq);
+//      p_id = node.patient_id;
+//      s_duration = patients[p_id].surgery_duration;
+//      // assign available OT
+//      // first - select a suitable OT
+//      if (!current_ot->time_left[d])
+//         if (current_ot_index < num_ots)
+//            current_ot = ot_data_arr[current_ot_index++];
+//
+//      while (current_ot->time_left[d] < s_duration) {
+//         if (current_ot_index == num_ots) { flag = 1; break; }
+//         current_ot = ot_data_arr[current_ot_index++];
+//      }
+//      if (flag) {
+//         flag = 0;
+//         for (i = 0; i < num_ots; ++i) {
+//            if (ot[i].time_left[d] >= s_duration) {
+//               // assign this ot to this patient
+//               flag = 1;
+//               patients[p_id].assigned_ot = i;
+//               ot[i].time_left[d] -= s_duration;
+//               break;
+//            }
+//         }
+//         // that means no ot was assigned
+//         if (!flag) {
+//             pushback_Mand_Opt_PQ(&node, vector);
+//            return NULL;
+//         }
+//      }
+//      else {
+//         // assign OT--------------------------------------------------------------------------------------------------
+//         patients[p_id].assigned_ot = current_ot->id;
+//         // update the time left
+//         current_ot->time_left[d] = current_ot->time_left[d] - s_duration;
+//      }
+//      // assign a room
+//      r_id = patients[p_id].gen ? findSuitableRoom(p_id, v_B): findSuitableRoom(p_id, v_A);
+//      if (r_id == -1) {
+//         // means there's no room in the gender_room_array and empty_array that is compatible with this patient
+//         // so in this case - put the patient in the PQ and move on
+//         insertNodeInPQ(pq, makeHeapNode(p_id , patients[p_id].mandatory, patients[p_id].surgery_due_day, node.delay));
+//         //printPriorityQueue(pq);
+//         printf("\n2071");
+//         //head = insertNodeInMand_opt_PQ(head, makeMand_opt_PQNode(node));
+//         break;
+//      }
+//      else {
+//         patients[p_id].assigned_room_no = r_id;
+//         room[r_id].num_patients_allocated++;
+//      }
+//      // assign admission day
+//      patients[p_id].admission_day = d;
+//   }
+//   // transfer all the patients in the PQ which were taken out for admission but bcz of resource constraints could not be admitted.
+//   for (int i = 0; i < vector->size; i++)
+//        insertNodeInPQ(pq, *vector->data[i]);
+//
+//   return current_ot;
+//}
+//
+//OTs* admitOptionalFromPQ(PriorityQueue* pq, int d, OTs** ot_data_arr, OTs* current_ot) {
+//    int i, p_id, s_id, s_duration, flag = 0, r_id;
+//    HeapNode node;
+//    Mand_opt_PQ* vector = (Mand_opt_PQ*)malloc(sizeof(Mand_opt_PQ));
+//    init_Mand_opt_PQ(vector, 20);
+//
+//    // Extract mandatory patients from PQ and store them
+//    for (i = 0, node = pq->data[0]; node.mandatory; node = pq->data[++i]) {
+//        node = extractMaxFromPQ(pq);
+//        pushback_Mand_Opt_PQ(vector, &node);
+//    }
+//
+//    // Process optional patients
+//    for (i = 0, node = pq->data[0]; i < pq->current_size; node = pq->data[i++]) {
+//        node = extractMaxFromPQ(pq);
+//        p_id = node.patient_id;
+//        s_duration = patients[p_id].surgery_duration;
+//
+//        // Assign available OT
+//        if (current_ot && !current_ot->time_left[d]) {
+//            if (current_ot_index < num_ots)
+//                current_ot = ot_data_arr[current_ot_index++];
+//        }
+//
+//        // Select a suitable OT
+//        while (current_ot_index < num_ots - 1) {
+//            current_ot = ot_data_arr[current_ot_index];
+//            if (!current_ot) {
+//                flag = 1;
+//                break;
+//            }
+//            if (current_ot->time_left[d] >= s_duration) {
+//                break;
+//            }
+//            current_ot_index++;
+//        }
+//
+//        if (flag) {
+//            pushback_Mand_Opt_PQ(vector, &node);
+//        }
+//        else {
+//            r_id = patients[p_id].gen ? findSuitableRoom(p_id, v_B) : findSuitableRoom(p_id, v_A);
+//            if (r_id == -1 || current_ot->time_left[d] < s_duration) {
+//                pushback_Mand_Opt_PQ(vector, &node);
+//                continue;
+//            }
+//            else {
+//                patients[p_id].assigned_room_no = r_id;
+//                patients[p_id].assigned_ot = current_ot->id;
+//                room[r_id].num_patients_allocated++;
+//                current_ot->time_left[d] -= s_duration;
+//                patients[p_id].admission_day = d;
+//            }
+//        }
+//    }
+//
+//    // Reinsert unassigned patients into the PQ
+//    for (int i = 0; i < vector->size; i++) {
+//        insertNodeInPQ(pq, *vector->data[i]);
+//    }
+//
+//    return current_ot;
+//}
 
 
 // --------------------ABOVE: Functions for admitting optional patients from the PQ (linked list functions as well)---------------------
@@ -2780,7 +2779,7 @@ void create_json_file(Patient* patients, int num_patients, Nurses* nurse, int nu
 
 int main(void) {
 
-   parse_json("data/instances/i02.json");
+   parse_json("data/instances/i25.json");
    PriorityQueue* pq;
 
    initialize_room_gender_map(&room_gender_map);
@@ -2797,8 +2796,8 @@ int main(void) {
    sort_optional_patients_on_release_day(optional_patients, optional_count);
    append_optional_to_mandatory(sorted_mandatory_patients, sorted_optional_patients);
    //print_sorted_optional_array();
-   //create_dm_nurses_availability();
-   //sorting_nurse_id_max_load();
+   create_dm_nurses_availability();
+   sorting_nurse_id_max_load();
    //print_ots(ot);
    admit_patients(room_gender_map, pq);
    //nurse_assignments();
