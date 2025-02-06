@@ -37,7 +37,7 @@ int num_gender_A_rooms, num_gender_B_rooms, num_empty_rooms;
 int* current_size_dm_nurse;
 int* room_gender_map;
 
-int** size_of_room_schedule;
+int **size_of_room_schedule;
 
 // Enums for the mapped values
 typedef enum { A, B } gender;
@@ -1955,12 +1955,12 @@ OTs* admitFromPQ(PriorityQueue* pq, int d, OTs** ot_data_arr, OTs* current_ot, i
     HeapNode* node;
     int i, j, p_id, flag, r_id, s_duration, p_counter;
 
-    Mand_opt_PQ* vector = (Mand_opt_PQ*)malloc(sizeof(Mand_opt_PQ));
+    Mand_opt_PQ* vector = (Mand_opt_PQ*)calloc(1, sizeof(Mand_opt_PQ));
     init_Mand_opt_PQ(vector, 20);
 
     if (flag_opt) {
         for (i = 0; pq->current_size > 0; i++) {
-            node = (HeapNode*)malloc(sizeof(HeapNode));  // Allocate new node
+            node = (HeapNode*)calloc(1, sizeof(HeapNode));  // Allocate new node
             *node = extractMaxFromPQ(pq);  // Copy extracted node data
             pushback_Mand_Opt_PQ(vector, node);
         }
@@ -1970,7 +1970,7 @@ OTs* admitFromPQ(PriorityQueue* pq, int d, OTs** ot_data_arr, OTs* current_ot, i
         if (!flag_opt && !(pq->data[p_counter].mandatory))
             continue;
         else {
-            node = (HeapNode*)malloc(sizeof(HeapNode));  // Allocate new node
+            node = (HeapNode*)calloc(1, sizeof(HeapNode));  // Allocate new node
             *node = extractMaxFromPQ(pq);  // Copy extracted node data
             p_id = node->patient_id;
             s_duration = patients[p_id].surgery_duration;
@@ -2177,9 +2177,9 @@ void admit_patients(int* room_gender_map, PriorityQueue* pq) {
    Node* head;
    OTs** ot_data_arr, * current_ot, * new_ot;
 
-   v_A = (RoomVector*)malloc(sizeof(RoomVector));
-   v_B = (RoomVector*)malloc(sizeof(RoomVector));
-   v_empty = (RoomVector*)malloc(sizeof(RoomVector));
+   v_A = (RoomVector*)calloc(1, sizeof(RoomVector));
+   v_B = (RoomVector*)calloc(1, sizeof(RoomVector));
+   v_empty = (RoomVector*)calloc(1, sizeof(RoomVector));
 
    //make_3_room_arrays(room_gender_map);
    make_3_vectors(room_gender_map);
@@ -2416,7 +2416,7 @@ void admit_patients(int* room_gender_map, PriorityQueue* pq) {
 //...............FUNCTION FOR CREATING THE 3-D ARRAY TO STORE THE PATIENTS IN THE ROOM ON A PARTICULAR DAY.........
 
 void initialize_3d_array() {
-   room_schedule = (Patient****)calloc(num_rooms, sizeof(Patient***));
+    room_schedule = (Patient****)calloc(num_rooms, sizeof(Patient***));
    size_of_room_schedule = (int**)calloc(num_rooms, sizeof(int*));
 
    for (int i = 0; i < num_rooms; i++) {
@@ -2429,17 +2429,22 @@ void create_3d_array(void) {
     initialize_3d_array();
     int i, j, admission_day, r_id, los;
     for (i = 0; i < num_patients; ++i) {
-        if (!patients[i].mandatory) continue;
+        if (patients[i].admission_day == -1) continue;
         admission_day = patients[i].admission_day;
         r_id = patients[i].assigned_room_no;
         los = patients[i].length_of_stay;
         for (j = admission_day; j < admission_day + los; ++j) {
+            if (j >= days) break;
             if (room_schedule[r_id][j]) {
-                room_schedule[r_id][j] = (Patient**)realloc(++size_of_room_schedule[r_id][j], sizeof(Patient*));
+                room_schedule[r_id][j] = (Patient**)realloc(room_schedule[r_id][j], ++size_of_room_schedule[r_id][j] * sizeof(Patient*));
+                if (!room_schedule[r_id][j])
+                    ASSERT(0, "Dynamic Memory Allocation Erorr.");
                 room_schedule[r_id][j][size_of_room_schedule[r_id][j] - 1] = patients + i;
             }
             else {
                 room_schedule[r_id][j] = (Patient**)calloc(1, sizeof(Patient*));
+                if (!room_schedule[r_id][j])
+                    ASSERT(0, "Dynamic Memory Allocation Erorr.");
                 size_of_room_schedule[r_id][j] = 1;
                 room_schedule[r_id][j][0] = patients + i;
             }
@@ -2451,7 +2456,7 @@ void create_3d_array(void) {
 void free_3d_array() {
     if (room_schedule == NULL)
        if (size_of_room_schedule == NULL)
-       return;
+           return;
     for (int i = 0; i < num_rooms; i++) {
       for (int j = 0; j < days; j++)
          if (room_schedule[i][j])
@@ -2502,13 +2507,10 @@ void sorting_nurse_id_max_load() {
 void allocate_dm_nurses_availability() {
    dm_nurses_availability = (Nurses***)calloc(days * 3, sizeof(Nurses**));
    max_load_updated = (int**)calloc(num_nurses, (sizeof(int*)));
+
    if (!dm_nurses_availability) {
       perror("Failed to allocate memory for main array");
       exit(EXIT_FAILURE);
-   }
-   for (int i = 0; i < days * 3; ++i) {
-      dm_nurses_availability[i] = NULL;  // Initialize each slot to NULL
-     // max_load_updated[i] = (int*)calloc(days * 3, sizeof(int));
    }
    if (!max_load_updated) {
       perror("Failed to allocate memory for max_load_updated");
@@ -2614,12 +2616,7 @@ void initialize_rooms_req(int num_rooms) {
       if (rooms_requirement[i] == NULL) {
          perror("Failed to allocate memory for a row");
          exit(EXIT_FAILURE);
-      }
-      //rooms_requirement[i] = { 0 };
-      for (int j = 0; j < 3 * days; j++) {
-         rooms_requirement[i][j].load_sum = 0;
-         rooms_requirement[i][j].max_skill_req = 0;
-      }
+      }   
    }
 }
 
@@ -2629,12 +2626,13 @@ void create_rooms_req() {
          for (int x = 0; x < 3; x++) {
             int sum = 0;
             int max_skill = 0;
+            //if (!size_of_room_schedule[i][j]) continue;
+            //printf("\n\nsize_of_room_schedule[i][j] = %d\n\n", size_of_room_schedule[i][j]);
             for (int k = 0; k < size_of_room_schedule[i][j]; k++) {
                Patient* temp = room_schedule[i][j][k];
                sum += temp->workload_produced[3 * j + x];
-               max_skill = (max_skill > temp->skill_level_required[3 * j + x])
-                  ? max_skill
-                  : temp->skill_level_required[3 * j + x];
+               printf("temp->skill_level_required[3 * j + x] = %d\n", temp->skill_level_required[3 * j + x]);
+               max_skill = (max_skill > temp->skill_level_required[3 * j + x]) ? max_skill : temp->skill_level_required[3 * j + x];
             }
             rooms_requirement[i][3 * j + x].load_sum = sum;
             rooms_requirement[i][3 * j + x].max_skill_req = max_skill;
@@ -2650,7 +2648,46 @@ void cleanup_rooms_req(int num_rooms) {
    free(rooms_requirement); // Free the array of rows
 }
 
-void nurse_assignments() {
+//-----------------------------------------------NURSE ASSIGNMENT : START--------------------------------------------------
+
+/*
+int*** days_room_shift_nurse_info_3d_arr;
+void createNurseAssignment3DArray(void) {
+    int i, j;
+
+    days_room_shift_nurse_info_3d_arr = (int***)calloc(days, sizeof(int**));
+    for (i = 0; i < days; ++i)
+        days_room_shift_nurse_info_3d_arr[i] = (int**)calloc(num_rooms, sizeof(int*));
+    for (i=0; i<days; ++i)
+        for (j=0; j<num_rooms; ++j)
+            days_room_shift_nurse_info_3d_arr[i][j] = (int*)calloc(3, sizeof(int)); 
+            // Since there are 3 shifts -> the length of the array is 3
+}
+
+void freeNurseAssignment3DArray(void) {
+    int i, j;
+
+    for (i = 0; i < days; ++i)
+        for (j = 0; j < num_rooms; ++j)
+            free(days_room_shift_nurse_info_3d_arr[i][j]);
+    for (i = 0; i < days; ++i)
+        free(days_room_shift_nurse_info_3d_arr[i]);
+    free(days_room_shift_nurse_info_3d_arr);
+
+}
+*/
+//void initializeNurseAssignment3DArray(void) {
+    /*
+    days_room_shift_nurse_info_3d_arr is a 3D array. The dimentions are as follows - 
+    X - axis : #days
+    Y - axis : #rooms
+    Z - axis : #shifts
+    */
+//}
+
+void nurse_assignments() { 
+    //createNurseAssignment3DArray();
+    //initializeNurseAssignment3DArray();
    for (int i = 0; i < days; i++) {
       for (int j = 0; j < num_rooms; j++) {
          for (int k = 0; k < 3; k++) {
@@ -2671,7 +2708,6 @@ void nurse_assignments() {
             3. also remaining_load should be greater than or equal to the load_sum for that room in the shift 3*i + k.
             4. ignoring continuity of care
             5. going for 0 scenario penalty for constraint s2 and s4.
-            6. ignoring continuity of care
             */
             while (m < arr_size) {
                nurse_to_be_assigned = arr[m];
@@ -2687,18 +2723,14 @@ void nurse_assignments() {
 
             // If a valid nurse is found, assign to the room
             if (m < arr_size && nurse_to_be_assigned != NULL) {
-               room[j].nurses_alloted = (int*)realloc(
-                  room[j].nurses_alloted,
-                  (room[j].length_of_nurses_alloted + 1) * sizeof(int));
+               room[j].nurses_alloted = (int*)realloc(room[j].nurses_alloted, ++room[j].length_of_nurses_alloted * sizeof(int));
 
                if (room[j].nurses_alloted == NULL) {
                   perror("Memory allocation failed for nurses_alloted");
                   exit(EXIT_FAILURE);
                }
                room[j].nurses_alloted = (int*)realloc(room[j].nurses_alloted, 2 * sizeof(int));
-               room[j].nurses_alloted[room[j].length_of_nurses_alloted] = nurse_to_be_assigned->id;
-               room[j].length_of_nurses_alloted++;
-
+               room[j].nurses_alloted[room[j].length_of_nurses_alloted-1] = nurse_to_be_assigned->id;
                max_load_updated[nurse_to_be_assigned->id][3 * i + k] -= rooms_requirement[j]->load_sum;
             }
             else {
@@ -2707,7 +2739,10 @@ void nurse_assignments() {
          }
       }
    }
+   //freeNurseAssignment3DArray();
 }
+
+//-----------------------------------------------NURSE ASSIGNMENT : END--------------------------------------------------
 
 void print_max_loadd_updated() {
    for (int i = 0; i < num_nurses; i++) {
@@ -2814,6 +2849,7 @@ int main(void) {
    //print_sorted_optional_array();
    //print_ots(ot);
    admit_patients(room_gender_map, pq);
+   create_3d_array();
    create_dm_nurses_availability();
    sorting_nurse_id_max_load();
    initialize_rooms_req(num_rooms);
