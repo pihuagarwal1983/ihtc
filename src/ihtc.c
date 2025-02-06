@@ -37,7 +37,7 @@ int num_gender_A_rooms, num_gender_B_rooms, num_empty_rooms;
 int* current_size_dm_nurse;
 int* room_gender_map;
 
-int*** size_of_room_schedule;
+int **size_of_room_schedule;
 
 // Enums for the mapped values
 typedef enum { A, B } gender;
@@ -2416,52 +2416,75 @@ void admit_patients(int* room_gender_map, PriorityQueue* pq) {
 //...............FUNCTION FOR CREATING THE 3-D ARRAY TO STORE THE PATIENTS IN THE ROOM ON A PARTICULAR DAY.........
 
 void initialize_3d_array() {
-   room_schedule = (Patient****)calloc(num_rooms, sizeof(Patient***));
-   size_of_room_schedule = (int***)calloc(num_rooms, sizeof(int**));
+    // Allocate memory for room_schedule: 3D array (rooms x days x patients)
+    room_schedule = (Patient***)calloc(num_rooms, sizeof(Patient**));  // Allocate space for rooms
+    size_of_room_schedule = (int**)calloc(num_rooms, sizeof(int*));  // Allocate space for size tracking by room
 
-   for (int i = 0; i < num_rooms; i++) {
-      room_schedule[i] = (Patient***)calloc(days, sizeof(Patient**));
-      size_of_room_schedule[i] = (int**)calloc(days, sizeof(int*));
+    for (int i = 0; i < num_rooms; i++) {
+        room_schedule[i] = (Patient**)calloc(days, sizeof(Patient*));  // Allocate space for days per room
+        size_of_room_schedule[i] = (int*)calloc(days, sizeof(int));  // Allocate space for size tracking per day
 
-      for (int j = 0; j < days; j++) {
-         room_schedule[i][j] = (Patient**)calloc(10, sizeof(Patient*)); // Dynamic array for patients
-         size_of_room_schedule[i][j] = (int*)calloc(1, sizeof(int)); // Track size of dynamic array
-         *(size_of_room_schedule[i][j]) = 0; // Initialize size to 0
-      }
-   }
+        for (int j = 0; j < days; j++) {
+            room_schedule[i][j] = (Patient*)calloc(1, sizeof(Patient));  // Pre-allocate space for 10 patients per day in each room
+            //size_of_room_schedule[i][j] = 0;  // Initialize the patient count for each room/day to 0
+        }
+    }
 }
 
-void create_3d_array(int day, int room_id, Patient* patient_ptr, int patient_id) {
-   initialize_3d_array();
-   int i = 0;
-   while (i < *size_of_room_schedule[room_id][day]) i++;
-   room_schedule[room_id][day][i] = patient_ptr;
 
+void create_3d_array(void) {
+    initialize_3d_array();
+    int i, j, admission_day, r_id, los;
+    for (i = 0; i < num_patients; ++i) {
+        if (patients[i].admission_day == -1) continue;
+        admission_day = patients[i].admission_day;
+        r_id = patients[i].assigned_room_no;
+        los = patients[i].length_of_stay;
+        for (j = admission_day; j < admission_day + los; ++j) {
+            if (j >= days) break;
+            if (room_schedule[r_id][j]) {
+                room_schedule[r_id][j] = (Patient*)realloc(room_schedule[r_id][j], ++size_of_room_schedule[r_id][j] * sizeof(Patient));
+                if (!room_schedule[r_id][j])
+                    ASSERT(0, "Dynamic Memory Allocation Erorr.");
+                room_schedule[r_id][j][size_of_room_schedule[r_id][j] - 1] = patients + i;
+            }
+            else {
+                room_schedule[r_id][j] = (Patient*)calloc(1, sizeof(Patient));
+                if (!room_schedule[r_id][j])
+                    ASSERT(0, "Dynamic Memory Allocation Erorr.");
+                size_of_room_schedule[r_id][j] = 1;
+                room_schedule[r_id][j][0] = patients + i;
+            }
+        }
+    }
 }
 
-void free_3d_array() {
-   if (room_schedule == NULL || size_of_room_schedule == NULL) {
-      return;
-   }
-   for (int i = 0; i < num_rooms; i++) {
-      for (int j = 0; j < days; j++) {
-         if (room_schedule[i][j] != NULL) {
-            free(room_schedule[i][j]);
-         }
-         if (size_of_room_schedule[i][j] != NULL) {
-            free(size_of_room_schedule[i][j]);
-         }
-      }
-      if (room_schedule[i] != NULL) {
-         free(room_schedule[i]);
-      }
-      if (size_of_room_schedule[i] != NULL) {
-         free(size_of_room_schedule[i]);
-      }
-   }
-   free(room_schedule);
-   free(size_of_room_schedule);
-}
+
+
+
+//void free_3d_array() {
+//   if (room_schedule == NULL || size_of_room_schedule == NULL) {
+//      return;
+//   }
+//   for (int i = 0; i < num_rooms; i++) {
+//      for (int j = 0; j < days; j++) {
+//         if (room_schedule[i][j] != NULL) {
+//            free(room_schedule[i][j]);
+//         }
+//         if (size_of_room_schedule[i][j] != NULL) {
+//            free(size_of_room_schedule[i][j]);
+//         }
+//      }
+//      if (room_schedule[i] != NULL) {
+//         free(room_schedule[i]);
+//      }
+//      if (size_of_room_schedule[i] != NULL) {
+//         free(size_of_room_schedule[i]);
+//      }
+//   }
+//   free(room_schedule);
+//   free(size_of_room_schedule);
+//}
 
 
 void swap_nurse_pointers(Nurses** nurse1, Nurses** nurse2) {
@@ -2541,10 +2564,12 @@ void allocate_sub_array(Nurses*** main_array, int index, int sub_size) {
 void append_to_sub_array(Nurses*** main_array, int index, int* current_sizes, Nurses* nurse) {
    int current_size = current_sizes[index];
    int new_size = current_size + 1;
-   main_array[index] = (Nurses**)realloc(main_array[index], new_size * sizeof(Nurses*));
-   if (!main_array[index]) {
-      perror("Failed to reallocate memory for sub-array");
-      exit(EXIT_FAILURE);
+   Nurses ** temp = (Nurses**)realloc(main_array[index], new_size * sizeof(Nurses*));
+   if (temp) {
+       main_array[index] = temp;
+   }
+   else {
+       ASSERT(!temp, "Memory allocation error.\n");
    }
    main_array[index][current_size] = nurse; // Add pointer to Nurse structure
    current_sizes[index] = new_size;        // Update current size
@@ -2629,7 +2654,7 @@ void create_rooms_req() {
          for (int x = 0; x < 3; x++) {
             int sum = 0;
             int max_skill = 0;
-            for (int k = 0; k < *size_of_room_schedule[i][j]; k++) {
+            for (int k = 0; k < size_of_room_schedule[i][j]; k++) {
                Patient* temp = room_schedule[i][j][k];
                sum += temp->workload_produced[3 * j + x];
                max_skill = (max_skill > temp->skill_level_required[3 * j + x])
@@ -2641,6 +2666,16 @@ void create_rooms_req() {
          }
       }
    }
+}
+
+void print_rooms_req() {
+    for (int i = 0; i < num_rooms; i++) {
+        printf("room_id:%d\n", i);
+        for (int j = 0; j < 3 * days; j++) {
+            printf("load_sum = %d\n", rooms_requirement[i][j].load_sum);
+            printf("max_skill_req = %d\n", rooms_requirement[i][j].max_skill_req);
+        }
+    }
 }
 
 void cleanup_rooms_req(int num_rooms) {
@@ -2687,20 +2722,39 @@ void nurse_assignments() {
 
             // If a valid nurse is found, assign to the room
             if (m < arr_size && nurse_to_be_assigned != NULL) {
-               room[j].nurses_alloted = (int*)realloc(
-                  room[j].nurses_alloted,
-                  (room[j].length_of_nurses_alloted + 1) * sizeof(int));
+                // Allocate to a temporary pointer first
+                int* temp = (int*)realloc(
+                    room[j].nurses_alloted,
+                    (room[j].length_of_nurses_alloted + 1) * sizeof(int)
+                );
 
-               if (room[j].nurses_alloted == NULL) {
-                  perror("Memory allocation failed for nurses_alloted");
-                  exit(EXIT_FAILURE);
-               }
-               room[j].nurses_alloted = (int*)realloc(room[j].nurses_alloted, 2 * sizeof(int));
-               room[j].nurses_alloted[room[j].length_of_nurses_alloted] = nurse_to_be_assigned->id;
-               room[j].length_of_nurses_alloted++;
+                // Check if realloc was successful
+                if (temp == NULL) {
+                    perror("Memory allocation failed for nurses_alloted");
+                    exit(EXIT_FAILURE);  // Exit if realloc fails
+                }
 
-               max_load_updated[nurse_to_be_assigned->id][3 * i + k] -= rooms_requirement[j]->load_sum;
+                // Assign the new memory to the original pointer
+                room[j].nurses_alloted = temp;
+
+                // Add the nurse's ID to the newly allocated space
+                room[j].nurses_alloted[room[j].length_of_nurses_alloted] = nurse_to_be_assigned->id; \
+                /*int* temp_nurse_room = (int*)realloc(nurse_to_be_assigned->shift->rooms, sizeof(int));
+                if (!temp_nurse_room) {
+                    perror("Memory allocation failed for nurses_alloted");
+                    exit(EXIT_FAILURE);
+                }
+                nurse_to_be_assigned->shift->rooms = temp_nurse_room;
+                nurse_to_be_assigned->shift->num_rooms++;
+                nurse_to_be_assigned->shift->rooms[nurse_to_be_assigned->shift->num_rooms] = room[j].id;*/
+
+                // Increment the count of nurses assigned to the room
+                room[j].length_of_nurses_alloted++;
+
+                // Update the max load for the nurse
+                max_load_updated[nurse_to_be_assigned->id][3 * i + k] -= rooms_requirement[j]->load_sum;
             }
+
             else {
                fprintf(stderr, "No valid nurse available for Room %d, Shift %d\n", j, 3 * i + k);
             }
@@ -2795,7 +2849,7 @@ void create_json_file(Patient* patients, int num_patients, Nurses* nurse, int nu
 
 int main(void) {
 
-   parse_json("data/instances/i30.json");
+   parse_json("data/instances/i02.json");
    PriorityQueue* pq;
 
    initialize_room_gender_map(&room_gender_map);
@@ -2816,16 +2870,18 @@ int main(void) {
    admit_patients(room_gender_map, pq);
    create_dm_nurses_availability();
    sorting_nurse_id_max_load();
+   create_3d_array();
    initialize_rooms_req(num_rooms);
    create_rooms_req();
-   nurse_assignments();
+   print_rooms_req();
+   //nurse_assignments();
 
    //print_dm_nurses();
 
   // print_mandatory_patients();
     //print_sorted_mandatory_array();
     //print_sorted_mandatory_patients();
-   create_json_file(patients , num_patients , nurses , num_nurses,"i30","D:/major_code/build/output");
+   create_json_file(patients , num_patients , nurses , num_nurses,"i01","D:/major_code/build/output");
    // Use the parsed data in your algorithm
    // int *surgery_time[num_surgeons][days];
    // printf("Weights:\n");
