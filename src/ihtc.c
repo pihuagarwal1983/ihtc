@@ -1,4 +1,4 @@
-#include <stdio.h>
+﻿#include <stdio.h>
 //#include <ncurses.h>
 //#include <conio.h>
 #include <stdlib.h>
@@ -236,6 +236,7 @@ typedef struct {
     int mandatory;   // 1 if mandatory, 0 otherwise
     int due_day;     // The day when the patient is due
     int delay;      // Lower is better
+    int los;
 } HeapNode;
 
 typedef struct {
@@ -255,18 +256,17 @@ typedef struct LL {
 GenderRoom* appendGenderRoomNode(GenderRoom*, GenderRoom*);
 GenderRoom* makeGenderRoomNode(Rooms*);
 void free_s_data_arr(Surgeon_data**, int);
-void make_3_room_arrays(int*);
+//void make_3_room_arrays(int*);
 void update_LOS_of_patients(int);
 int findSuitableRoom(int, RoomVector *);
 void sort_s_data_arr(Surgeon_data**, int, Node*);
 void sort_ot_data_arr(OTs**, int);
 int find_max_surgeon_id(Node*);
-OTs* admitOptionalFromPQ(PriorityQueue*, int, OTs**, OTs*);
-OTs* admitMandatoryFromPQ(PriorityQueue*, int, OTs**, OTs*, int);
+//OTs* admitOptionalFromPQ(PriorityQueue*, int, OTs**, OTs*);
+//OTs* admitMandatoryFromPQ(PriorityQueue*, int, OTs**, OTs*, int);
 GenderRoom* deleteGenderRoomNode(GenderRoom*, GenderRoom*);
-void free_3_room_arrays(void);
+//void free_3_room_arrays(void);
 GenderRoom* removeAndAppendGenderRoom(int, GenderRoom*);
-void update_LOS_of_patients(int);
 void admit_patients(int*, PriorityQueue*);
 void init_Rooms(RoomVector* vector, int initialcap);
 void pushback(RoomVector* vector, Rooms* room);
@@ -1286,36 +1286,52 @@ Node* find_smallest_iter(Node* head) {
 }
 
 Node* insertion_sort_for_linked_list(Node* head) {
-   // runs insertion sort algorithm on the patients array (mandatory adn optional).
-   if (!head || !head->next) return head; // No sorting needed for 0 or 1 node.
-   Node* sorted = NULL; // New head of the sorted list
-   Node* current = head;
-   while (current) {
-      Node* next = current->next; // Save the next node
-      // Insert current node into the sorted list
-      if (!sorted || current->pointer->length_of_stay < sorted->pointer->length_of_stay) {
-         // Insert at the head
-         current->next = sorted;
-         if (sorted) sorted->prev = current; // Update prev for old head
-         sorted = current;
-         sorted->prev = NULL; // New head has no prev
-      }
-      else {
-         // Traverse sorted list to find the correct position
-         Node* temp = sorted;
-         while (temp->next && temp->next->pointer->length_of_stay < current->pointer->length_of_stay) {
-            temp = temp->next;
-         }
-         // Insert current after temp
-         current->next = temp->next;
-         if (temp->next) temp->next->prev = current; // Update prev for next node
-         temp->next = current;
-         current->prev = temp; // Update prev for current node
-      }
-      current = next; // Move to the next node in the original list
-   }
-   return sorted;
+    if (!head || !head->next) return head; // No sorting needed for 0 or 1 node.
+
+    Node* sorted = NULL; // New head of the sorted list
+    Node* current = head;
+
+    while (current) {
+        Node* next = current->next; // Save the next node
+
+        // Calculate length of stay and surgery due day difference
+        int length_of_stay = current->pointer->length_of_stay;  // Assuming this is part of the patient structure
+        int current_diff = current->pointer->surgery_due_day - current->pointer->surgery_release_day;
+
+        // Insert current node into the sorted list
+        if (!sorted ||
+            length_of_stay < sorted->pointer->length_of_stay ||
+            (length_of_stay == sorted->pointer->length_of_stay && current_diff < (sorted->pointer->surgery_due_day - sorted->pointer->surgery_release_day)) ||
+            (length_of_stay == sorted->pointer->length_of_stay && current_diff == (sorted->pointer->surgery_due_day - sorted->pointer->surgery_release_day) && current->pointer->surgery_due_day < sorted->pointer->surgery_due_day)) {
+
+            // Insert at the head
+            current->next = sorted;
+            if (sorted) sorted->prev = current; // Update prev for old head
+            sorted = current;
+            sorted->prev = NULL; // New head has no prev
+        }
+        else {
+            // Traverse sorted list to find the correct position
+            Node* temp = sorted;
+            while (temp->next &&
+                (length_of_stay > temp->pointer->length_of_stay ||
+                    (length_of_stay == temp->pointer->length_of_stay && current_diff > (temp->pointer->surgery_due_day - temp->pointer->surgery_release_day)) ||
+                    (length_of_stay == temp->pointer->length_of_stay && current_diff == (temp->pointer->surgery_due_day - temp->pointer->surgery_release_day) && current->pointer->surgery_due_day > temp->pointer->surgery_due_day))) {
+                temp = temp->next;
+            }
+
+            // Insert current after temp
+            current->next = temp->next;
+            if (temp->next) temp->next->prev = current; // Update prev for next node
+            temp->next = current;
+            current->prev = temp; // Update prev for current node
+        }
+        current = next; // Move to the next node in the original list
+    }
+
+    return sorted;
 }
+
 
 void sort_mandatory_patients_on_LOS(void) {
    // here we will sort the sorted_mandatory_patients array on LOS of the patient.
@@ -1370,42 +1386,46 @@ void print_sorted_mandatory_patients() {
 // ...................FUNCTION BELOW ARE FOR THE ROOM_GENDER_MAP.....................//
 
 
-void initialize_room_gender_map(int* room_gender_map) {
+void initialize_room_gender_map(int** room_gender_map) {
     // Allocate memory for room_gender_map (array of pointers to rows)
-    room_gender_map = (int*)calloc(num_rooms, sizeof(int)); // Allocate memory for row pointers
-    if (!room_gender_map) {
+    *room_gender_map = (int*)calloc(num_rooms, sizeof(int)); // Allocate memory for row pointers
+    if (!*room_gender_map) {
         printf("Memory allocation failed for room_gender_map.\n");
         exit(1);
     }
 
     // Allocate memory for each row and initialize values to -1
     for (int i = 0; i < num_rooms; i++) {
-            (room_gender_map)[i] = -1;
+            (*room_gender_map)[i] = -1;
     }
 }
 
-void populate_room_gender_map(int* room_gender_map) {
+void populate_room_gender_map(int** room_gender_map) {
    // populates the room_gender_map
-   if (!room_gender_map) {
+   if (!*room_gender_map) {
       printf("Error: room_gender_map is not initialized.\n");
       return;
    }
    for (int i = 0; i < num_rooms; ++i) {
-      room_gender_map[i] = -1;
+       (*room_gender_map)[i] = -1;
    }
+
+   // Populate room_gender_map based on occupants
    for (int i = 0; i < num_occupants; ++i) {
-      if (occupants[i].room_id >= 0 && occupants[i].room_id < num_rooms) {
-         room_gender_map[occupants[i].room_id] = occupants[i].gen;
-      }
-      else {
-         printf("Warning: Invalid room_id %d for occupant %d.\n", occupants[i].room_id, i);
-      }
+       int room_id = occupants[i].room_id;
+
+       if (room_id >= 0 && room_id < num_rooms) {
+           (*room_gender_map)[room_id] = occupants[i].gen; // Correct indexing
+       }
+       else {
+           printf("Warning: Invalid room_id %d for occupant %d.\n", room_id, i);
+       }
    }
 }
 
-void print_map(int* room_gender_map) {
+void print_map(int** room_gender_map) {
    for (int i = 0; i < num_rooms; i++)
-      printf("room number: %d\tgender: %d\n", i, room_gender_map[i]);
+      printf("room number: %d\tgender: %d\n", i, (*room_gender_map)[i]);
 }
 
 
@@ -1413,20 +1433,27 @@ void print_map(int* room_gender_map) {
 
 // Initialize the priority queue
 void heapifyUp(PriorityQueue* pq, int index) {
-   // runs the max/min heapify from leaf to the root, i.e. O (log n) time
-   while (index > 0) {
-      int parent = (index - 1) / 2;
-      if (compareNodesForPQ(pq->data[index], pq->data[parent]) > 0) {
-         // Swap child with parent
-         HeapNode temp = pq->data[index];
-         pq->data[index] = pq->data[parent];
-         pq->data[parent] = temp;
-         index = parent;
-      }
-      else {
-          break;
-      }
-   }
+   // printf("HeapifyUp - Starting at index: %d\n", index);
+    while (index > 0) {
+        int parent = (index - 1) / 2;
+        //printf("Comparing node at index %d with parent at index %d\n", index, parent);
+        if (compareNodesForPQ(pq->data[index], pq->data[parent]) > 0) {
+            // Swap child with parent
+          //  printf("Swapping node with parent: (%d, %d, %d, %d) <-> (%d, %d, %d, %d)\n",
+            //    pq->data[index].patient_id, pq->data[index].mandatory, pq->data[index].due_day, pq->data[index].delay,
+              //  pq->data[parent].patient_id, pq->data[parent].mandatory, pq->data[parent].due_day, pq->data[parent].delay);
+
+            HeapNode temp = pq->data[index];
+            pq->data[index] = pq->data[parent];
+            pq->data[parent] = temp;
+            index = parent;
+        }
+        else {
+            //printf("No swap needed\n");
+            break;
+        }
+    }
+    printf("HeapifyUp - Final index: %d\n", index);
 }
 
 void heapifyDown(PriorityQueue* pq, int index) {
@@ -1469,25 +1496,25 @@ void initPQ(PriorityQueue* pq, int initialCapacity) {
 
 // Insert a new element into the priority queue
 void insertNodeInPQ(PriorityQueue* pq, HeapNode node) {
-   // inserts a node in the PQ
-   if (pq->current_size == pq->capacity) {
-      resizePQ(pq); // Resize the array if it's full
-   }
-   pq->data[pq->current_size] = node; // Add the new node at the end
-   heapifyUp(pq, pq->current_size);   // Restore the heap property
-   pq->current_size++;
+    if (pq->current_size == pq->capacity) {
+        resizePQ(pq); // Resize if full
+    }
+    pq->data[pq->current_size] = node; // Add node at the end
+    heapifyUp(pq, pq->current_size);   // Restore heap property
+    pq->current_size++;  // Increment AFTER heapifyUp
 }
 
 // Extract the element with the highest priority
 HeapNode extractMaxFromPQ(PriorityQueue* pq) {
-   if (isEmptyPQ(pq)) {
-      printf("Priority Queue Underflow\n");
-      exit(EXIT_FAILURE);
-   }
-   HeapNode maxNode = pq->data[0];
-   pq->data[0] = pq->data[pq->current_size--];
-   heapifyDown(pq, 0);
-   return maxNode;
+    if (isEmptyPQ(pq)) {
+        printf("Priority Queue Underflow\n");
+        exit(EXIT_FAILURE);
+    }
+    HeapNode maxNode = pq->data[0];
+    pq->data[0] = pq->data[pq->current_size - 1]; // Fix: Assign last element
+    pq->current_size--;  // Fix: Decrement AFTER swap
+    heapifyDown(pq, 0);  // Fix: Maintain heap property
+    return maxNode;
 }
 
 // Peek at the element with the highest priority without removing it
@@ -1508,18 +1535,29 @@ int isEmptyPQ(PriorityQueue* pq) {
 
 // Compare two HeapNodes based on priority
 int compareNodesForPQ(HeapNode a, HeapNode b) {
-   // compares 2 nodes and returns the difference of either p_id, mandatory or delay
+    // If the mandatory flag differs, prioritize the mandatory patient first
     if (a.mandatory != b.mandatory) {
-        return a.mandatory - b.mandatory;  // Mandatory patients first
+        return a.mandatory - b.mandatory;  // Prioritize mandatory=1
     }
-    if (a.due_day != b.due_day) {
-        return b.due_day - a.due_day;  // Patients with nearer due days first
+
+    // If both patients are mandatory, prioritize by due_day and then by length_of_stay
+    if (a.mandatory == 1) {
+        if (a.due_day != b.due_day) {
+            return a.due_day - b.due_day;  // Patient with earlier due_day comes first
+        }
+        return a.los - b.los;  // If due_day is the same, sort by length_of_stay
     }
+
+    // If both patients are not mandatory, prioritize by delay
     if (a.delay != b.delay) {
-        return a.delay - b.delay;  // Patients with higher delay first
+        return a.delay - b.delay;  // Higher delay has higher priority
     }
-    return b.patient_id - a.patient_id;  
+
+    // If all fields are equal, return -1 (default)
+    return -1;
 }
+
+
 
 void resizePQ(PriorityQueue* pq) {
    // resizes PQ's capacity
@@ -1534,20 +1572,38 @@ void resizePQ(PriorityQueue* pq) {
 }
 
 
-void printPriorityQueue(PriorityQueue* pq) {
-    if (isEmptyPQ(pq)) {
-        printf("Priority Queue is empty\n");
+void printPQTree(PriorityQueue* pq, int index, int space, int level, char branch) {
+    if (index >= pq->current_size) return;
+
+    space += 5;  // Increase spacing for better alignment
+
+    // Print right child first for proper visualization
+    printPQTree(pq, 2 * index + 2, space, level + 1, '/');
+
+    // Print the current node with appropriate indentation
+    printf("\n");
+    for (int i = 5; i < space; i++) printf(" ");
+
+    if (level > 0) {
+        printf("|--");  // Use "|--" to indicate branching
+    }
+
+    printf("(%d)\n", pq->data[index].patient_id);
+
+    // Print left child
+    printPQTree(pq, 2 * index + 1, space, level + 1, '\\');
+}
+
+// Function to print tree with edges
+void printPQWithEdges(PriorityQueue* pq) {
+    if (pq->current_size == 0) {
+        printf("Priority Queue is empty.\n");
         return;
     }
 
-    printf("Priority Queue Elements:\n");
-    for (int i = 0; i < pq->current_size; i++) {
-        printf("Patient ID: %d, Mandatory: %d, Due Day: %d, Delay: %d\n",
-            pq->data[i].patient_id, pq->data[i].mandatory,
-            pq->data[i].due_day, pq->data[i].delay);
-    }
+    printf("Priority Queue Tree Structure:\n");
+    printPQTree(pq, 0, 0, 0, ' ');
 }
-
 
 void freePQ(PriorityQueue* pq) {
    free(pq->data);
@@ -1557,9 +1613,11 @@ void freePQ(PriorityQueue* pq) {
    free(pq);
 }
 
-HeapNode makeHeapNode(int p_id, int mandatory, int due_day , int delay) {
+
+
+HeapNode makeHeapNode(int p_id, int mandatory, int due_day , int delay, int los) {
    // creates a heap_node for PQ
-   HeapNode node = { p_id, mandatory, due_day, delay };
+   HeapNode node = { p_id, mandatory, due_day, delay, los };
    return node;
 }
 
@@ -1735,15 +1793,15 @@ void freevector(RoomVector* vector) {
 }
 
 
-void make_3_vectors(int* room_gender_map) {
+void make_3_vectors(int** room_gender_map) {
     init_Rooms(v_A, 2);
     init_Rooms(v_B, 2);
     init_Rooms(v_empty, 2);
 
     for (int i = 0; i < num_rooms; i++) {
-        if (room_gender_map[i] == -1)
+        if ((*room_gender_map)[i] == -1)
             pushback(v_empty, &room[i]);
-        else if (room_gender_map[i] == 0)
+        else if ((*room_gender_map)[i] == 0)
             pushback(v_A, &room[i]);
         else
             pushback(v_B, &room[i]);
@@ -1753,7 +1811,7 @@ void make_3_vectors(int* room_gender_map) {
 void printVector(const char* label, RoomVector* vector) {
     printf("%s:\n", label);
     for (int i = 0; i < vector->size; i++) {
-        printf("Room ID: %d, Capacity: %d\n", vector->data[i]->id, vector->data[i]->cap);
+        printf("Room ID: %d, Capacity: %d, occupants: %d, patients: %d\n", vector->data[i]->id, vector->data[i]->cap, vector->data[i]->occupants_cap, vector->data[i]->num_patients_allocated);
     }
 }
 
@@ -1771,46 +1829,76 @@ int find_max_surgeon_id(Node* head) {
 }
 
 int findSuitableRoom(int p_id, RoomVector* vector) {
-   // return - room_id OR -1 in case no room is suitable
-   // assign available Room and return the room_id
-   // considerations - capacity, gender, compatibility & age-mix
-   // do something so that the sum_workload_of_a_room does not exceed too much as that will create issues while assigning nurses
-   int flag = 0, i, j, r_id, g = patients[p_id].gen, n;
-   char* age = patients[p_id].age_group;
-  // GenderRoom* self, * prev_ptr, * temp;
+    // Returns a room_id OR -1 if no suitable room is found
+    int flag = 0, j, r_id;
+    int g = patients[p_id].gen; // Gender of patient
+    char* age = patients[p_id].age_group; // Age group of patient
 
+    // First pass: Look in associated gender-based vector
+    for (int i = 0; i < vector->size; i++) {
+        flag = 0;
+        r_id = vector->data[i]->id;
 
-   for (int i = 0; i < vector->size; i++) {
-       flag = 0;
-       r_id = vector->data[i]->id;
-       if (room[r_id].cap <= (room[r_id].num_patients_allocated + room[r_id].occupants_cap)) continue;
-       for (j = 0; j < patients[p_id].num_incompatible_rooms; j++) {
-           if (r_id == patients[p_id].incompatible_room_ids[j]) {
-               flag = 1; break;
-           }
-       }
+        // Check if room is full
+        if (room[r_id].cap == (room[r_id].num_patients_allocated + room[r_id].occupants_cap)) {
+            continue;
+        }
 
-       if (flag) continue;
-       else return r_id;
+        // Check for incompatible rooms
+        for (j = 0; j < patients[p_id].num_incompatible_rooms; j++) {
+            if (r_id == patients[p_id].incompatible_room_ids[j]) {
+                flag = 1; // Mark as incompatible
+                break;
+            }
+        }
 
-   }
-       //if no room was found in the associated gender array then look for a room in empty room array.
+        // If incompatible, skip this room
+        if (flag) continue;
 
-       if (patients[p_id].assigned_room_no == -1) {
-           for (i = 0; i < v_empty->size; i++) {
-               r_id = v_empty->data[i]->id;
-               if (room[r_id].cap <= (room[r_id].num_patients_allocated + room[r_id].occupants_cap)) continue;
-               for (j = 0; j < patients[p_id].num_incompatible_rooms; ++j)
-                   if (r_id == patients[p_id].incompatible_room_ids[j]) { flag = 1; break; }
-               if (flag) continue;
-               moveRoom(v_empty, vector, r_id);
+        // Check workload constraint before assigning
+        /*if (room[r_id].workload + patients[p_id].workload > MAX_WORKLOAD_LIMIT) {
+            continue;
+        }*/
 
-               return r_id;
-           }
-       }
-       return -1;
-   }
+        return r_id; // Found a suitable room
+    }
 
+    // Second pass: Look in empty rooms if no room was assigned
+    if (patients[p_id].assigned_room_no == -1) {
+        for (int i = 0; i < v_empty->size; i++) {
+            flag = 0;
+            r_id = v_empty->data[i]->id;
+
+            // Check if room is full
+            if (room[r_id].cap == (room[r_id].num_patients_allocated + room[r_id].occupants_cap)) {
+                continue;
+            }
+
+            // Check for incompatible rooms
+            for (j = 0; j < patients[p_id].num_incompatible_rooms; ++j) {
+                if (r_id == patients[p_id].incompatible_room_ids[j]) {
+                    flag = 1;
+                    break;
+                }
+            }
+
+            // If incompatible, skip this room
+            if (flag) continue;
+
+            // Check workload constraint before assigning
+            /*if (room[r_id].workload + patients[p_id].workload > MAX_WORKLOAD_LIMIT) {
+                continue;
+            }*/
+
+            // Move room from empty list to the main vector
+            moveRoom(v_empty, vector, r_id);
+
+            return r_id; // Found a suitable room
+        }
+    }
+
+    return -1; // No suitable room found
+}
 
 void update_LOS_of_patients(int d) {
    /* Check if any patient's length_of_stay is over and if yes then remove that patient from -
@@ -1832,7 +1920,7 @@ void update_LOS_of_patients(int d) {
       days_passed = d - occ.length_of_stay;
       if (days_passed > 0 && occupants[i].is_admitted == 1) {
          // throw the occupant out
-          if(room[r_id].occupants_cap > 0)
+          //if(room[r_id].occupants_cap > 0)
          room[r_id].occupants_cap--;
           occupants[i].is_admitted = 0;
          if (!room[r_id].occupants_cap && !room[r_id].num_patients_allocated) {
@@ -1886,48 +1974,7 @@ void free_s_data_arr(Surgeon_data** s_data_arr, int n) {
 
 // --------------------BELOW: Functions for admitting patients from the PQ (linked list functions as well)---------------------
 
-//typedef struct optionals_PQ {
-//   HeapNode node;
-//   struct optionals_PQ* next;
-//} Mand_opt_PQ;
-//
-//Mand_opt_PQ* makeMand_opt_PQNode(HeapNode heap_node) {
-//   Mand_opt_PQ* node;
-//   if ((node = (Mand_opt_PQ*)calloc(1, sizeof(Mand_opt_PQ))) == NULL) {
-//      perror("\nDynamic memory allocation error: not enough memory for Mand_opt_PQ");
-//      exit(EXIT_FAILURE);
-//   }
-//   node->node = heap_node;
-//   return node;
-//}
-//
-//Mand_opt_PQ* insertNodeInMand_opt_PQ(Mand_opt_PQ* head, Mand_opt_PQ* node) {
-//   // append at the head
-//   node->next = head;
-//   head = node;
-//   return head;
-//}
 
-// Mand_opt_PQ *deleteNodeInMand_opt_PQ(Mand_opt_PQ *head, Mand_opt_PQ *node) {
-//     // append at the head
-//     Mand_opt_PQ *self;
-//     if (head == node)
-//         head = head->next;
-//     else {
-//         for (self=head; self->next != node; self=self->next);
-//         if (self->next == node)
-//             self->next = node->next;
-//     }
-//     node->next = NULL;
-//     return node;
-// }
-
-//void freeMand_opt_PQ(Mand_opt_PQ* head) {
-//   // frees the Mand_opt_PQ singly linked list
-//   if (!head) return;
-//   freeMand_opt_PQ(head->next);
-//   free(head);
-//}
 
 typedef struct {
     HeapNode** data;
@@ -1967,218 +2014,116 @@ HeapNode* pop_Mand_opt_PQ(Mand_opt_PQ* vector) {
     return vector->data[--vector->size];  // Decrement size after access
 }
 
-OTs* admitFromPQ(PriorityQueue* pq, int d, OTs** ot_data_arr, OTs* current_ot, int current_ot_index, int flag_opt) {
-    HeapNode* node;
-    int i, j, p_id, flag, r_id, s_duration, p_counter;
 
-    Mand_opt_PQ* vector = (Mand_opt_PQ*)malloc(sizeof(Mand_opt_PQ));
-    init_Mand_opt_PQ(vector, 20);
 
-    if (flag_opt) {
-        for (i = 0; pq->current_size > 0; i++) {
-            node = (HeapNode*)malloc(sizeof(HeapNode));  // Allocate new node
-            *node = extractMaxFromPQ(pq);  // Copy extracted node data
-            pushback_Mand_Opt_PQ(vector, node);
-        }
-    }
+OTs* admitFromPQ(PriorityQueue* pq, int d, OTs** ot_data_arr, OTs* current_ot, int current_ot_index) {
+    Mand_opt_PQ* deferredPatients = (Mand_opt_PQ*)malloc(sizeof(Mand_opt_PQ));
+    init_Mand_opt_PQ(deferredPatients, 20);
 
-    for (p_counter = 0, flag = 0; p_counter < pq->current_size; ++p_counter) {
-        if (!flag_opt && !(pq->data[p_counter].mandatory))
-            continue;
-        else {
-            node = (HeapNode*)malloc(sizeof(HeapNode));  // Allocate new node
-            *node = extractMaxFromPQ(pq);  // Copy extracted node data
-            p_id = node->patient_id;
-            s_duration = patients[p_id].surgery_duration;
+    while (pq->current_size) {
+        if (!pq->data[0].mandatory) break;
+        HeapNode node = extractMaxFromPQ(pq);
+        int p_id = node.patient_id;
 
-            while (!current_ot->time_left[d] || current_ot->time_left[d] < s_duration) {
-                current_ot = ot_data_arr[current_ot_index];
-                if (current_ot_index < num_ots) {
-                    current_ot_index++;
+        if (!patients[p_id].is_admitted) {
+            int s_duration = patients[p_id].surgery_duration;
+            int admitted = 0;
+            int is_due_today = (patients[p_id].surgery_due_day == d);
+
+            // Emergency handling for due-day patients
+            if (is_due_today) {
+                // Force admission even if constraints are violated
+                for (int i = 0; i < num_ots && !admitted; i++) {
+                    OTs* ot = ot_data_arr[i];
+                    int surgeon_id = patients[p_id].surgeon_id;
+                    int r_id = -1;
+
+                    // 1. Try normal room assignment
+                    r_id = patients[p_id].gen ? findSuitableRoom(p_id, v_B) : findSuitableRoom(p_id, v_A);
+
+                    // 2. Try empty rooms if no gender-specific room found
+                    //if (r_id == -1 && v_empty->size > 0) {
+                    //    r_id = v_empty->data[0];
+                    //   // removeElement(v_empty, 0);  // Remove from empty list
+                    //}
+
+                    //// 3. Force assignment to any available room
+                    /*if (r_id == -1) {
+                        for (int room_idx = 0; room_idx < num_rooms; room_idx++) {
+                            if (room[room_idx].num_patients_allocated + room[room_idx].occupants_cap < room[room_idx].cap) {
+                                r_id = room_idx;
+                                break;
+                            }
+                        }
+                    }*/
+
+                    if (r_id != -1) {
+                        // Forcefully deduct time (even if negative)
+                        ot->time_left[d] -= s_duration;
+                        surgeon[surgeon_id].time_left[d] -= s_duration;
+
+                        patients[p_id].assigned_room_no = r_id;
+                        patients[p_id].assigned_ot = ot->id;
+                        patients[p_id].admission_day = d;
+                        patients[p_id].is_admitted = 1;
+                        room[r_id].num_patients_allocated++;
+                        admitted = 1;
+                        current_ot_index = i;
+                    }
                 }
-                if (current_ot_index == num_ots) {
-                    flag = 1;
-                    current_ot_index--;
-                    break;
-                }
-            }
-
-            if (flag) {
-                pushback_Mand_Opt_PQ(vector, node);
-                continue;
             }
             else {
-                r_id = patients[p_id].gen ? findSuitableRoom(p_id, v_B) : findSuitableRoom(p_id, v_A);
-                if (r_id == -1) {
-                    pushback_Mand_Opt_PQ(vector, node);
-                    continue;
-                }
-                else {
-                    if (surgeon[patients[p_id].surgeon_id].time_left[d] >= patients[p_id].surgery_duration) {
-                        patients[p_id].assigned_room_no = r_id;
-                        patients[p_id].assigned_ot = current_ot->id;
-                        room[r_id].num_patients_allocated++;
-                        current_ot->time_left[d] -= s_duration;
-                        patients[p_id].admission_day = d;
-                        surgeon[patients[p_id].surgeon_id].time_left[d] -= s_duration;
-                        patients[p_id].is_admitted = 1;
+                // Original logic for non-due-day patients
+                for (int i = current_ot_index; i < num_ots && !admitted; i++) {
+                    OTs* ot = ot_data_arr[i];
+                    int surgeon_id = patients[p_id].surgeon_id;
+
+                    if (ot->time_left[d] >= s_duration &&
+                        surgeon[surgeon_id].time_left[d] >= s_duration) {
+                        int r_id = patients[p_id].gen ?
+                            findSuitableRoom(p_id, v_B) :
+                            findSuitableRoom(p_id, v_A);
+                        if (r_id != -1) {
+                            ot->time_left[d] -= s_duration;
+                            surgeon[surgeon_id].time_left[d] -= s_duration;
+                            patients[p_id].assigned_room_no = r_id;
+                            patients[p_id].assigned_ot = ot->id;
+                            patients[p_id].admission_day = d;
+                            patients[p_id].is_admitted = 1;
+                            room[r_id].num_patients_allocated++;
+                            admitted = 1;
+                            current_ot_index = i;
+                        }
                     }
-                    else {
-                        pushback_Mand_Opt_PQ(vector, node);
-                    }
                 }
+            }
+
+            if (!admitted) {
+                HeapNode* temp = (HeapNode*)malloc(sizeof(HeapNode));
+                *temp = node;
+                temp->delay = d - patients[temp->patient_id].surgery_release_day;
+                pushback_Mand_Opt_PQ(deferredPatients, temp);
             }
         }
     }
 
-    for (int i = 0; i < vector->size; i++) {
-        insertNodeInPQ(pq, *(vector->data[i]));
-        free(vector->data[i]);  // Free dynamically allocated HeapNode
+    // Reinsert deferred patients (filter expired due dates)
+    for (int i = 0; i < deferredPatients->size; i++) {
+        int p_id = deferredPatients->data[i]->patient_id;
+        if (patients[p_id].surgery_due_day > d) {
+            insertNodeInPQ(pq, *(deferredPatients->data[i]));
+        }
+        free(deferredPatients->data[i]);
     }
-    free(vector->data);  // Free vector data array
-    free(vector);  // Free vector
+    free(deferredPatients->data);
+    free(deferredPatients);
 
-    return current_ot;
+    return ot_data_arr[current_ot_index % num_ots];
 }
-
-//OTs* admitMandatoryFromPQ(PriorityQueue* pq, int d, OTs** ot_data_arr, OTs* current_ot, int current_ot_index) {
-//   // this function will admit patients from the PQ (who could not be admitted before bcz of some reason)
-//   HeapNode self, node;
-//   Mand_opt_PQ * vector = (Mand_opt_PQ*)malloc(sizeof(Mand_opt_PQ));
-//   init_Mand_opt_PQ(vector, 20);
-//   int i, j, p_id, flag, delay, r_id, s_duration, ot_id, p_counter, ot_counter, temp;
-//
-//   for (p_counter = 0, flag = 0; (p_counter < pq->current_size && pq->data[p_counter].mandatory); ++p_counter) {
-//      node = extractMaxFromPQ(pq);
-//      p_id = node.patient_id;
-//      s_duration = patients[p_id].surgery_duration;
-//      // assign available OT
-//      // first - select a suitable OT
-//      if (!current_ot->time_left[d])
-//         if (current_ot_index < num_ots)
-//            current_ot = ot_data_arr[current_ot_index++];
-//
-//      while (current_ot->time_left[d] < s_duration) {
-//         if (current_ot_index == num_ots) { flag = 1; break; }
-//         current_ot = ot_data_arr[current_ot_index++];
-//      }
-//      if (flag) {
-//         flag = 0;
-//         for (i = 0; i < num_ots; ++i) {
-//            if (ot[i].time_left[d] >= s_duration) {
-//               // assign this ot to this patient
-//               flag = 1;
-//               patients[p_id].assigned_ot = i;
-//               ot[i].time_left[d] -= s_duration;
-//               break;
-//            }
-//         }
-//         // that means no ot was assigned
-//         if (!flag) {
-//             pushback_Mand_Opt_PQ(&node, vector);
-//            return NULL;
-//         }
-//      }
-//      else {
-//         // assign OT--------------------------------------------------------------------------------------------------
-//         patients[p_id].assigned_ot = current_ot->id;
-//         // update the time left
-//         current_ot->time_left[d] = current_ot->time_left[d] - s_duration;
-//      }
-//      // assign a room
-//      r_id = patients[p_id].gen ? findSuitableRoom(p_id, v_B): findSuitableRoom(p_id, v_A);
-//      if (r_id == -1) {
-//         // means there's no room in the gender_room_array and empty_array that is compatible with this patient
-//         // so in this case - put the patient in the PQ and move on
-//         insertNodeInPQ(pq, makeHeapNode(p_id , patients[p_id].mandatory, patients[p_id].surgery_due_day, node.delay));
-//         //printPriorityQueue(pq);
-//         printf("\n2071");
-//         //head = insertNodeInMand_opt_PQ(head, makeMand_opt_PQNode(node));
-//         break;
-//      }
-//      else {
-//         patients[p_id].assigned_room_no = r_id;
-//         room[r_id].num_patients_allocated++;
-//      }
-//      // assign admission day
-//      patients[p_id].admission_day = d;
-//   }
-//   // transfer all the patients in the PQ which were taken out for admission but bcz of resource constraints could not be admitted.
-//   for (int i = 0; i < vector->size; i++)
-//        insertNodeInPQ(pq, *vector->data[i]);
-//
-//   return current_ot;
-//}
-//
-//OTs* admitOptionalFromPQ(PriorityQueue* pq, int d, OTs** ot_data_arr, OTs* current_ot) {
-//    int i, p_id, s_id, s_duration, flag = 0, r_id;
-//    HeapNode node;
-//    Mand_opt_PQ* vector = (Mand_opt_PQ*)malloc(sizeof(Mand_opt_PQ));
-//    init_Mand_opt_PQ(vector, 20);
-//
-//    // Extract mandatory patients from PQ and store them
-//    for (i = 0, node = pq->data[0]; node.mandatory; node = pq->data[++i]) {
-//        node = extractMaxFromPQ(pq);
-//        pushback_Mand_Opt_PQ(vector, &node);
-//    }
-//
-//    // Process optional patients
-//    for (i = 0, node = pq->data[0]; i < pq->current_size; node = pq->data[i++]) {
-//        node = extractMaxFromPQ(pq);
-//        p_id = node.patient_id;
-//        s_duration = patients[p_id].surgery_duration;
-//
-//        // Assign available OT
-//        if (current_ot && !current_ot->time_left[d]) {
-//            if (current_ot_index < num_ots)
-//                current_ot = ot_data_arr[current_ot_index++];
-//        }
-//
-//        // Select a suitable OT
-//        while (current_ot_index < num_ots - 1) {
-//            current_ot = ot_data_arr[current_ot_index];
-//            if (!current_ot) {
-//                flag = 1;
-//                break;
-//            }
-//            if (current_ot->time_left[d] >= s_duration) {
-//                break;
-//            }
-//            current_ot_index++;
-//        }
-//
-//        if (flag) {
-//            pushback_Mand_Opt_PQ(vector, &node);
-//        }
-//        else {
-//            r_id = patients[p_id].gen ? findSuitableRoom(p_id, v_B) : findSuitableRoom(p_id, v_A);
-//            if (r_id == -1 || current_ot->time_left[d] < s_duration) {
-//                pushback_Mand_Opt_PQ(vector, &node);
-//                continue;
-//            }
-//            else {
-//                patients[p_id].assigned_room_no = r_id;
-//                patients[p_id].assigned_ot = current_ot->id;
-//                room[r_id].num_patients_allocated++;
-//                current_ot->time_left[d] -= s_duration;
-//                patients[p_id].admission_day = d;
-//            }
-//        }
-//    }
-//
-//    // Reinsert unassigned patients into the PQ
-//    for (int i = 0; i < vector->size; i++) {
-//        insertNodeInPQ(pq, *vector->data[i]);
-//    }
-//
-//    return current_ot;
-//}
-
-
 // --------------------ABOVE: Functions for admitting optional patients from the PQ (linked list functions as well)---------------------
 
 
-void admit_patients(int* room_gender_map, PriorityQueue* pq) {
+void admit_patients(int** room_gender_map, PriorityQueue* pq) {
    /*
        we'll go patient by patient.
        when a patient comes, we'll check what's his release_day and due_day
@@ -2206,9 +2151,9 @@ void admit_patients(int* room_gender_map, PriorityQueue* pq) {
 
    //make_3_room_arrays(room_gender_map);
    make_3_vectors(&room_gender_map);
-   printVector("A", v_A);
-   printVector("B", v_B);
-   printVector("Empty", v_empty);
+  /* printVector("A", v_A);
+   printVector("B", v_B);cd
+   printVector("Empty", v_empty);*/
    // first, make another OT array (array of pointers to structures)
   // copy all the OT struct pointers to the ot_data_array.
    ot_data_arr = (OTs**)calloc(num_ots, sizeof(OTs*));
@@ -2216,7 +2161,7 @@ void admit_patients(int* room_gender_map, PriorityQueue* pq) {
       printf("Memory not allocated.\n");
       exit(-1);
    }
-   print_ots(ot);
+   //print_ots(ot);
 
    for (i = 0; i < num_ots; ++i)
       ot_data_arr[i] = &ot[i];
@@ -2262,7 +2207,7 @@ void admit_patients(int* room_gender_map, PriorityQueue* pq) {
             if (!s_data_arr[i]->isNull) {
                for (k = 0; k < s_data_arr[i]->num_assigned_patients; ++k) {
                   temp_patient_id = s_data_arr[i]->assigned_patients[k];
-                  insertNodeInPQ(pq, makeHeapNode(temp_patient_id, patients[temp_patient_id].mandatory, patients[temp_patient_id].surgery_due_day,0));
+                  insertNodeInPQ(pq, makeHeapNode(temp_patient_id, patients[temp_patient_id].mandatory, patients[temp_patient_id].surgery_due_day,0, patients[temp_patient_id].length_of_stay));
                   //printPriorityQueue(pq); printf("\n2241");
                }
             }
@@ -2272,8 +2217,8 @@ void admit_patients(int* room_gender_map, PriorityQueue* pq) {
 
       flag = 0;
       // admit the mandatory patients previously not admitted from the PQ
-      if (d && pq->current_size > 0 && count_admit_PQ < 2) {
-          current_ot = admitFromPQ(pq, d, ot_data_arr, current_ot, current_ot_index, flag_opt);
+      if (d && pq->current_size > 0 && count_admit_PQ < 1) {
+          current_ot = admitFromPQ(pq, d, ot_data_arr, current_ot, current_ot_index);
           count_admit_PQ++;
           flag_opt = 1;
       }
@@ -2282,7 +2227,7 @@ void admit_patients(int* room_gender_map, PriorityQueue* pq) {
             if (!s_data_arr[i]->isNull)
                for (k = 0; k < s_data_arr[i]->num_assigned_patients; ++k) {
                   temp_patient_id = s_data_arr[i]->assigned_patients[k];
-                  insertNodeInPQ(pq, makeHeapNode(temp_patient_id, patients[temp_patient_id].mandatory, patients[temp_patient_id].surgery_due_day, 0));
+                  insertNodeInPQ(pq, makeHeapNode(temp_patient_id, patients[temp_patient_id].mandatory, patients[temp_patient_id].surgery_due_day, 0, patients[temp_patient_id].length_of_stay));
                   //printPriorityQueue(pq); printf("\n2261");
                }
          continue; // go to the next day and then admit these patients
@@ -2307,13 +2252,21 @@ void admit_patients(int* room_gender_map, PriorityQueue* pq) {
                           surgeon[s_data_arr[i]->surgeon_id].time_left[d] -= s_duration;
                       }
                       r_id = patients[temp_patient_id].gen ? findSuitableRoom(temp_patient_id, v_B) : findSuitableRoom(temp_patient_id, v_A);
-                      patients[temp_patient_id].assigned_room_no = r_id;
-                      room[r_id].num_patients_allocated += 1;
-                      patients[temp_patient_id].admission_day = d;
-                      patients[i].is_admitted = 1;
+                      if (r_id != -1 ) {
+                          patients[temp_patient_id].assigned_room_no = r_id;
+                          room[r_id].num_patients_allocated += 1;
+                          patients[temp_patient_id].admission_day = d;
+                          patients[temp_patient_id].assigned_ot = current_ot->id;
+                          //surgeon[s_data_arr[k]->surgeon_id].time_left[d] -= s_duration;
+                          patients[temp_patient_id].is_admitted = 1;
+                      }
+                      
+                      /*printVector("A", v_A);
+                      printVector("B", v_B);
+                      printVector("Empty", v_empty);*/
                   }
                   else
-                  insertNodeInPQ(pq, makeHeapNode(temp_patient_id, patients[temp_patient_id].mandatory, patients[temp_patient_id].surgery_due_day, 0));
+                  insertNodeInPQ(pq, makeHeapNode(temp_patient_id, patients[temp_patient_id].mandatory, patients[temp_patient_id].surgery_due_day, 0, patients[temp_patient_id].length_of_stay));
                   //printPriorityQueue(pq); printf("\n2291");
                }
                continue;
@@ -2334,7 +2287,7 @@ void admit_patients(int* room_gender_map, PriorityQueue* pq) {
                    if (flag) {
                        for (k = 0; k < s_data_arr[i]->num_assigned_patients; ++k) {
                            temp_patient_id = s_data_arr[i]->assigned_patients[k];
-                           insertNodeInPQ(pq, makeHeapNode(temp_patient_id, patients[temp_patient_id].mandatory, patients[temp_patient_id].surgery_due_day, 0));
+                           insertNodeInPQ(pq, makeHeapNode(temp_patient_id, patients[temp_patient_id].mandatory, patients[temp_patient_id].surgery_due_day, 0, patients[temp_patient_id].length_of_stay));
                            //printPriorityQueue(pq); printf("\n2312");
                        }
                        break;
@@ -2351,7 +2304,7 @@ void admit_patients(int* room_gender_map, PriorityQueue* pq) {
                        if (r_id == -1) {
                            // means there's no room in the gender_room_array and empty_array that is compatible with this patient
                            // so in this case - put the patient in the PQ and move on
-                           insertNodeInPQ(pq, makeHeapNode(p_id, patients[p_id].mandatory, patients[p_id].surgery_due_day, 0));
+                           insertNodeInPQ(pq, makeHeapNode(p_id, patients[p_id].mandatory, patients[p_id].surgery_due_day, 0, patients[p_id].length_of_stay));
                            //printPriorityQueue(pq); printf("\n2329");
                            continue;
                        }
@@ -2365,9 +2318,12 @@ void admit_patients(int* room_gender_map, PriorityQueue* pq) {
                                current_ot->time_left[d] -= s_duration;
                                surgeon[patients[p_id].surgeon_id].time_left[d] -= s_duration;
                                patients[i].is_admitted = 1;
+                               printVector("A", v_A);
+                               printVector("B", v_B);
+                               printVector("Empty", v_empty); 
                            }
                            else {
-                               insertNodeInPQ(pq, makeHeapNode(p_id, patients[p_id].mandatory, patients[p_id].surgery_due_day, 0));
+                               insertNodeInPQ(pq, makeHeapNode(p_id, patients[p_id].mandatory, patients[p_id].surgery_due_day, 0, patients[p_id].length_of_stay));
                            }
                        }
                    }
@@ -2386,26 +2342,29 @@ void admit_patients(int* room_gender_map, PriorityQueue* pq) {
                4. then today's optional patients.
                */
                else {
-                   if (pq->current_size > 0 && count_admit_PQ < 2) {
-                       current_ot = admitFromPQ(pq, d, ot_data_arr, current_ot, current_ot_index, flag_opt);
+                  // continue;
+                   /*if (pq->current_size > 0 && count_admit_PQ < 2) {
+                       current_ot = admitFromPQ(pq, d, ot_data_arr, current_ot, current_ot_index);
                        count_admit_PQ++;
-                   }
-                  // admit today's optionals
+                   }*/
+                   //admit today's optionals
                   // otherwise - put into the PQ
                   if (current_ot) {
                      // write code here for admitting today's optional patients
                      r_id = patients[p_id].gen ? findSuitableRoom(p_id, v_B) : findSuitableRoom(p_id, v_A);
                      if (r_id == -1) {
-                        insertNodeInPQ(pq, makeHeapNode(p_id, patients[p_id].mandatory, patients[p_id].surgery_due_day, 0));
-                        //printPriorityQueue(pq); printf("\n2367");
-                        continue;
+                         insertNodeInPQ(pq, makeHeapNode(p_id, patients[p_id].mandatory, patients[p_id].surgery_due_day, 0, patients[p_id].length_of_stay));
+                         //printPriorityQueue(pq); printf("\n2367");
+                         continue;
                      }
-                     while (current_ot_index < num_ots && current_ot->time_left[d] < s_duration ) {
-                         current_ot_index++;
-                         if (current_ot_index < num_ots) {  // Prevent accessing out of bounds
-                             current_ot = ot_data_arr[current_ot_index];
+                     else {
+                         while (current_ot_index < num_ots && current_ot->time_left[d] < s_duration) {
+                             current_ot_index++;
+                             if (current_ot_index < num_ots) {  // Prevent accessing out of bounds
+                                 current_ot = ot_data_arr[current_ot_index];
+                             }
+
                          }
-                         
                      }
 
                      if (current_ot_index == num_ots) {
@@ -2423,13 +2382,13 @@ void admit_patients(int* room_gender_map, PriorityQueue* pq) {
                          patients[i].is_admitted = 1;
                      }
                      else {
-                         insertNodeInPQ(pq, makeHeapNode(p_id, patients[p_id].mandatory, patients[p_id].surgery_due_day, 0));
+                         insertNodeInPQ(pq, makeHeapNode(p_id, patients[p_id].mandatory, patients[p_id].surgery_due_day, 0, patients[p_id].length_of_stay));
                      }
                   }
                   else {
                      for (k = 0; k < s_data_arr[i]->num_assigned_patients; ++k) {
                         temp_patient_id = s_data_arr[i]->assigned_patients[k];
-                        insertNodeInPQ(pq, makeHeapNode(temp_patient_id, patients[temp_patient_id].mandatory, patients[temp_patient_id].surgery_due_day, 0));
+                        insertNodeInPQ(pq, makeHeapNode(temp_patient_id, patients[temp_patient_id].mandatory, patients[temp_patient_id].surgery_due_day, 0, patients[temp_patient_id].length_of_stay));
                        // printPriorityQueue(pq); printf("\n2394");
                      }
                   }
@@ -2899,7 +2858,7 @@ void create_json_file(Patient* patients, int num_patients, Nurses* nurse, int nu
 
     // Calculate ID padding sizes
     int patient_digits = (num_patients > 1) ? ((int)log10(num_patients) + 1) : 1;
-    int nurse_digits = (num_nurses > 1) ? ((int)log10(num_nurses) + 1) : 1;
+    int nurse_digits = (num_nurses > 1) ? ((int)log10(num_nurses) + 2) : 1;
     int room_digits = (num_rooms > 1) ? ((int)log10(num_rooms) + 1) : 1;
     int ot_digits = (num_rooms > 1) ? ((int)log10(num_ots) + 0) : 1;
 
@@ -2954,62 +2913,65 @@ void create_json_file(Patient* patients, int num_patients, Nurses* nurse, int nu
 }
 
 
-int main(void) {
-
-   parse_json("data/instances/i02.json");
-   PriorityQueue* pq;
-
-   initialize_room_gender_map(&room_gender_map);
-
-   pq = (PriorityQueue*)calloc(1, sizeof(PriorityQueue));
-   initPQ(pq, 20); // InitalCapacity = 20. It'll resizePQ itself if we try to insert more HeapNodes in it. 
-   populate_room_gender_map(room_gender_map);
-   sort_mandatory_patients_on_release_day(mandatory_patients, mandatory_count);
-   sort_mandatory_patients_on_LOS();
-   //print_sorted_mandatory_array();
-   sort_optional_patients_on_release_day(optional_patients, optional_count);
-   append_optional_to_mandatory(sorted_mandatory_patients, sorted_optional_patients);
-   admit_patients(room_gender_map, pq);
-   create_dm_nurses_availability();
-   sorting_nurse_id_max_load();
-   create_3d_array();
-   print_room_schedule();
-   initialize_rooms_req(num_rooms);
-   create_rooms_req();
-  print_rooms_req();
-   nurse_assignments();
-
-  // print_dm_nurses();
-   create_json_file(patients , num_patients , nurses , num_nurses,num_rooms, "i02","D:/major_code/build/output");
-   // print_surgeons(surgeon);
-   //print_ots(ot);
-   // print_rooms();
-    print_nurses();
-   // print_patients(patients);
-   // print_occupants();
-   // print_mandatory_patients();
-   // print_optional_patients();
-
-
-   //Free allocated memory
-  // free_patients_sorted_array(sorted_mandatory_patients);
-   //free_patients_sorted_array(sorted_optional_patients);
-   free_occupants();
-   free_patients();
-   free_surgeons();
-   free_ots();
-   free_rooms();
-   //free_nurses();
-   free(weights);
-   return 0;
-}
-
-
-/*
-UPDATES SECTION: Here we will put all the updates related to this program. Whether it's about the heuristic or anything else.
-1. Wrote code for admit_patients function and some utility functions
-2. Working on: written in admit_patients function
-3. Surgeons sorting function needs updation - we have to account for null values as well.
-*/
-
-
+//int main(void) {
+//
+//   parse_json("data/instances/i20.json");
+//   PriorityQueue* pq;
+//
+//   initialize_room_gender_map(&room_gender_map);
+//
+//   pq = (PriorityQueue*)calloc(1, sizeof(PriorityQueue));
+//   initPQ(pq, 20); // InitalCapacity = 20. It'll resizePQ itself if we try to insert more HeapNodes in it. 
+//   populate_room_gender_map(&room_gender_map);
+//   print_map(&room_gender_map);
+//   sort_mandatory_patients_on_release_day(mandatory_patients, mandatory_count);
+//   sort_mandatory_patients_on_LOS();
+//   //print_sorted_mandatory_array();
+//   sort_optional_patients_on_release_day(optional_patients, optional_count);
+//   append_optional_to_mandatory(sorted_mandatory_patients, sorted_optional_patients);
+//   admit_patients(room_gender_map, pq);
+//   create_dm_nurses_availability();
+//   sorting_nurse_id_max_load();
+//   create_3d_array();
+//   //print_room_schedule();
+//   initialize_rooms_req(num_rooms);
+//   create_rooms_req();
+//  //print_rooms_req();
+//   nurse_assignments();
+//
+//  // print_dm_nurses();
+//   create_json_file(patients , num_patients , nurses , num_nurses,num_rooms, "i20","D:/major_code/build/output");
+//   // print_surgeons(surgeon);
+//   //print_ots(ot);
+//   // print_rooms();
+//    //print_nurses();
+//   // print_patients(patients);
+//   // print_occupants();
+//   // print_mandatory_patients();
+//   // print_optional_patients();
+//
+//   print_ots(ot);
+//   print_surgeons(surgeon);
+//  // printPQWithEdges(pq);
+//   //Free allocated memory
+//  // free_patients_sorted_array(sorted_mandatory_patients);
+//   //free_patients_sorted_array(sorted_optional_patients);
+//   free_occupants();
+//   free_patients();
+//   free_surgeons();
+//   free_ots();
+//   free_rooms();
+//   //free_nurses();
+//   free(weights);
+//   return 0;
+//}
+//
+//
+///*
+//UPDATES SECTION: Here we will put all the updates related to this program. Whether it's about the heuristic or anything else.
+//1. Wrote code for admit_patients function and some utility functions
+//2. Working on: written in admit_patients function
+//3. Surgeons sorting function needs updation - we have to account for null values as well.
+//*/
+//
+//
