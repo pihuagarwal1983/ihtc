@@ -2607,7 +2607,7 @@ int **POPULATION, *G_BEST, CHROMOSOME_SIZE;
 int **CROSSOVER_OFFSPRING_STORAGE_PLACE, **CROSSOVER_PARENT_STORAGE_PLACE;
 int *MUTATED_OFFSPRING_STORAGE_PLACE, *MUTATE_PARENT_STORAGE_PLACE;
 
-//-------------------------------------------------------BELOW: FUNCTION DEFINITIONS FOR GA-----------------------------------------------------------
+//-------------------------------------------------------BELOW: FUNCTION PROTOTYPES FOR GA-----------------------------------------------------------
 
 void applyGeneticAlgorithm(void);
 int evaluateFitnessScore(int *chromosome);
@@ -2623,7 +2623,7 @@ void initDataStructures(void);
 void freeDataStructures(void);
 void printPopulation(void);
 
-//-------------------------------------------------------ABOVE: FUNCTION DEFINITIONS FOR GA-----------------------------------------------------------
+//-------------------------------------------------------ABOVE: FUNCTION PROTOTYPES FOR GA-----------------------------------------------------------
 
 void applyGeneticAlgorithm(void)
 {   int i, j, best_fitness, g_best;
@@ -2677,7 +2677,7 @@ void applyGeneticAlgorithm(void)
 int evaluateFitnessScore(int *chromosome, PriorityQueue *pq)
 {   // fitness score is the number of mandatory patients who were admitted in the scheduling period.
     // The best fitness score is CHROMOSOME_SIZE
-    `int unscheduled_mandatory, total_unscheduled_mandatory;
+    `int total_unscheduled_mandatory;
 
     unscheduled_mandatory = admit_patients(room_gender_map, pq, chromosome);
     total_unscheduled_mandatory = unscheduled_mandatory + pq->current_size;
@@ -2999,58 +2999,57 @@ int main(void) {
     freeDataStructures();
 
     /*
-   create_dm_nurses_availability();
-   sorting_nurse_id_max_load();
-   create_3d_array();
-   print_room_schedule();
-   initialize_rooms_req(num_rooms);
-   create_rooms_req();
-  print_rooms_req();
-   nurse_assignments();
+    create_dm_nurses_availability();
+    sorting_nurse_id_max_load();
+    create_3d_array();
+    print_room_schedule();
+    initialize_rooms_req(num_rooms);
+    create_rooms_req();
+    print_rooms_req();
+    nurse_assignments();
 
-  // print_dm_nurses();
+    // print_dm_nurses();
 
-  // print_mandatory_patients();
+    // print_mandatory_patients();
     //print_sorted_mandatory_array();
     //print_sorted_mandatory_patients();
+    */
    create_json_file(patients , num_patients , nurses , num_nurses,num_rooms, "i05","D:/major_code/build/output");
    // Use the parsed data in your algorithm
-   // int *surgery_time[num_surgeons][days];
-   // printf("Weights:\n");
-   // printf("Room Mixed Age: %d\n", weights->room_mixed_age);
-   // printf("Room Nurse Skill: %d\n", weights->room_nurse_skill);
-   // printf("Continuity of Care: %d\n", weights->continuity_of_care);
-   // printf("Nurse Excessive Workload: %d\n", weights->nurse_excessive_workload);
-   // printf("Open Operating Theater: %d\n", weights->open_operating_theater);
-   // printf("Surgeon Transfer: %d\n", weights->surgeon_transfer);
-   // printf("Patient Delay: %d\n", weights->patient_delay);
-   // printf("Unscheduled Optional: %d\n", weights->unscheduled_optional);
+    int *surgery_time[num_surgeons][days];
+    printf("Weights:\n");
+    printf("Room Mixed Age: %d\n", weights->room_mixed_age);
+    printf("Room Nurse Skill: %d\n", weights->room_nurse_skill);
+    printf("Continuity of Care: %d\n", weights->continuity_of_care);
+    printf("Nurse Excessive Workload: %d\n", weights->nurse_excessive_workload);
+    printf("Open Operating Theater: %d\n", weights->open_operating_theater);
+    printf("Surgeon Transfer: %d\n", weights->surgeon_transfer);
+    printf("Patient Delay: %d\n", weights->patient_delay);
+    printf("Unscheduled Optional: %d\n", weights->unscheduled_optional);
 
-   // print_surgeons(surgeon);
-   //print_ots(ot);
-   // print_rooms();
+    /*
+    print_surgeons(surgeon);
+    print_ots(ot);
+    print_rooms();
     print_nurses();
-   // print_patients(patients);
-   // print_occupants();
-   // print_mandatory_patients();
-   // print_optional_patients();
+    print_patients(patients);
+    print_occupants();
+    print_mandatory_patients();
+    print_optional_patients();
+    */
 
+    //Free allocated memory
+    // free_patients_sorted_array(sorted_mandatory_patients);
+    //free_patients_sorted_array(sorted_optional_patients);
+    free_occupants();
+    free_patients();
+    free_surgeons();
+    free_ots();
+    free_rooms();
+    //free_nurses();
+    free(weights);
 
-   //Free allocated memory
-  // free_patients_sorted_array(sorted_mandatory_patients);
-   //free_patients_sorted_array(sorted_optional_patients);
-   free_occupants();
-   free_patients();
-   free_surgeons();
-   free_ots();
-   free_rooms();
-   //free_nurses();
-   free(weights);
-
-   */
-
-   freePopulation();
-   return 0;
+    return 0;
 }
 
 
