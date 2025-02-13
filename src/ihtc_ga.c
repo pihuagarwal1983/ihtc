@@ -1,25 +1,25 @@
-#include <stdio.h>
-//#include <ncurses.h>
-//#include <conio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <ctype.h>
-#include <math.h>
-#include <time.h>
-#include "cJSON.h"
-#include <direct.h>
-#include <stdbool.h>
+//#include <stdio.h>
+////#include <ncurses.h>
+////#include <conio.h>
+//#include <stdlib.h>
+//#include <string.h>
+//#include <ctype.h>
+//#include <math.h>
+//#include <time.h>
+//#include "cJSON.h"
+//#include <direct.h>
+//#include <stdbool.h>
+//#include <cASSERT>
 
+#include <definition.h>
 
-//#include <cassert>
-
-#define ASSERT(condition, message) \
-    do { \
-        if (!(condition)) { \
-            fprintf(stderr, "Assertion failed: %s\nFile: %s, Line: %d\n", message, __FILE__, __LINE__); \
-            exit(EXIT_FAILURE); \
-        } \
-    } while (0)
+//#define ASSERT(condition, message) \
+//    do { \
+//        if (!(condition)) { \
+//            fprintf(stderr, "ASSERTion failed: %s\nFile: %s, Line: %d\n", message, __FILE__, __LINE__); \
+//            exit(EXIT_FAILURE); \
+//        } \
+//    } while (0)
 
 // Extern declarations (telling the compiler these are defined elsewhere)
 extern int days;
@@ -35,173 +35,15 @@ extern int optional_count;
 extern int current_ot_index;
 
 // int is_admitted[1000] = {0}; // we're not using this array anywhere so let's comment it out
-int num_gender_A_rooms, num_gender_B_rooms, num_empty_rooms;
-int* current_size_dm_nurse;
+//int num_gender_A_rooms, num_gender_B_rooms, num_empty_rooms;
+//int* current_size_dm_nurse;
 extern int* room_gender_map;
-
-int** size_of_room_schedule;
-
-// Enums for the mapped values
-typedef enum { A, B } gender;
-typedef enum { early, late, night } shift_types;
-typedef enum { optional, mandatory } PatientType;
-
-const char* gender_to_string(gender g);
-
-const char* shift_types_to_string(shift_types shift);
-
-// Enum conversion functions
-gender string_to_gender(const char* str);
-
-shift_types string_to_shift_types(const char* str);
-
-int str2int(char* a);
-
-// Struct definitions
-typedef struct {
-    int day;
-    shift_types shift_time;
-    int max_load;
-    int* rooms;
-    int num_rooms;
-} Shifts;
-
-typedef struct {
-    int id;
-    int skill_level;
-    Shifts* shift;
-    int num_shifts;
-} Nurses;
-
-//Nurses* nurses;
-Nurses*** dm_nurses_availability;  //nurse assignment
-int** max_load_updated; //nurse assignment
-
-typedef struct {
-    int room_mixed_age;
-    int room_nurse_skill;
-    int continuity_of_care;
-    int nurse_excessive_workload;
-    int open_operating_theater;
-    int surgeon_transfer;
-    int patient_delay;
-    int unscheduled_optional;
-} Weights;
-
-
-//Weights* weights = NULL; // Global pointer for weights
-typedef struct {
-    int id;
-    int length_of_stay;
-    int room_id;
-    char* age;
-    gender gen;
-    int* workload_produced;
-    int* skill_level_required;
-} Occupants;
-
-
-//Occupants* occupants = NULL; // Global pointer for occupants
-typedef struct {
-    int id;
-    int mandatory;
-    gender gen;
-    char* age_group;
-    int length_of_stay;
-    int surgery_release_day;
-    int surgery_due_day;
-    int surgery_duration;
-    int surgeon_id;
-    int* incompatible_room_ids;
-    int num_incompatible_rooms;
-    int* workload_produced;
-    int* skill_level_required;
-    int assigned_room_no;
-    int assigned_ot;
-    int admission_day;
-} Patient;
-
-
-//Patient* patients;
-//Patient** mandatory_patients = NULL;
-//Patient** optional_patients = NULL;
-//Patient**** room_schedule;
-
-typedef struct {
-    int id;
-    int* max_surgery_time;
-    int* time_left; // default: max_surgery_time
-    int* patients_assigned;
-    int num_assigned_patients; // a fixed number - how many patients are assigned to this surgeon
-    int current_size; // dynamic size of the patients_assigned array
-} Surgeon;
-
-
-//Surgeon* surgeon;
-typedef struct {
-    int id;
-    int* max_ot_time;
-    int* time_left; // default: max_ot_time
-} OTs;
-
-
-//OTs* ot;
-typedef struct {
-    int id;
-    int cap;
-    int num_patients_allocated;
-    // int *patients_allocated;
-    int occupants_cap;
-    int* nurses_alloted;
-    int length_of_nurses_alloted;
-} Rooms;
-
-typedef struct {
-    int surgeon_id;
-    int* assigned_patients;
-    int num_assigned_patients;
-    int surgery_duration_sum;
-    int isNull;
-    /* added isNull in the struct cuz s_data_arr has null values as well and we need to sort that array on the basis of
-    surgery_duration_sum. if that cell is null then we cant really sort the array as that may contrive problems while selecting the pivot
-    so for those null pointers we'll create this same structure and put 1 in the isNull field. this way we'll know that this pointer is
-    a null one and we can deal with it accordingly.
-    */
-} Surgeon_data;
-
-
-typedef struct {
-    int patient_id;  // Unique ID for patient
-    int mandatory;   // 1 if mandatory, 0 otherwise
-    int due_day;     // The day when the patient is due
-    int delay;      // Lower is better
-    int los;
-} HeapNode;
-
-typedef struct {
-    HeapNode* data; // Dynamically allocated array for heap nodes
-    int current_size;       // Current number of elements in the priority queue
-    int capacity;   // Maximum capacity of the priority queue
-} PriorityQueue;
-
-
-typedef struct LL {
-    Patient* pointer;
-    struct LL* next, * prev;
-} Node;
 
 typedef struct {
     HeapNode** data;
     int size;
     int capacity;
 } Mand_opt_PQ;
-
-typedef struct {
-    Rooms** data;
-    int size;
-    int capacity;
-}RoomVector;
-
 extern RoomVector* v_A, * v_B, * v_empty;
 
 const int POPULATION_SIZE = 100, NUM_ITER = 10000, CONVERGENCE_STOPPING_CRITERION = 100;
@@ -364,6 +206,7 @@ OTs* admitFromPQ_GA(PriorityQueue* pq, int d, OTs** ot_data_arr, OTs* current_ot
                         room[r_id].num_patients_allocated++;
                         current_ot->time_left[d] -= s_duration;
                         patients[p_id].admission_day = d;
+                        surgeon[patients[p_id].surgeon_id].time_left[d] -= patients[p_id].surgery_duration;
                     }
                     else
                         pushback_Mand_Opt_PQ(vector, node);
@@ -385,6 +228,8 @@ OTs* admitFromPQ_GA(PriorityQueue* pq, int d, OTs** ot_data_arr, OTs* current_ot
 // --------------------ABOVE: Functions for admitting optional patients from the PQ (linked list functions as well)---------------------
 
 //-------------------------------------------------BELOW: FUNCTIONS FOR PATIENT ADMISSION----------------------------------------------------------
+
+int k = 0;
 
 int admitPatientsGA(int** room_gender_map, PriorityQueue* pq, int* chromosome)
 {
@@ -410,11 +255,16 @@ int admitPatientsGA(int** room_gender_map, PriorityQueue* pq, int* chromosome)
     for (i = 0; i < num_ots; ++i)
         ot_data_arr[i] = ot + i;
 
+    printf("\nChromosome:%d\t", k++);
+    for (int i = 0; i < CHROMOSOME_SIZE; i++)
+        printf("%d\t", chromosome[i]);
+    //update_LOS_of_patients_GA(day, chromosome);
+
     //----------------------------------------------------------apply checks and ADMIT PATIENTS------------------------------------------------------
 
     for (day = 0, p_counter = 0; day < days; ++day) {
-        update_LOS_of_patients_GA(day, chromosome);
-
+        if(day)
+            update_LOS_of_patients_GA(day, chromosome);
         current_ot_index = 0;
         sort_ot_data_arr(ot_data_arr, day);
         current_ot = ot_data_arr[current_ot_index];
@@ -429,60 +279,62 @@ int admitPatientsGA(int** room_gender_map, PriorityQueue* pq, int* chromosome)
             assigned_ot = -1;
             p_id = chromosome[p_counter];
             // if the release day is greater than current_day (day) - go to the next day and then try to admit this patient
-            if (day < mandatory_patients[p_id]->surgery_release_day) {
+            if (day < patients[p_id].surgery_release_day) {
                 ++p_counter;
                 break;
             }
             // if current_day (day) is greater than the due day of the patient - increase the unscheduled_mandatory count and go to the next patient
-            if (day > mandatory_patients[p_id]->surgery_due_day) {
+            if (day > patients[p_id].surgery_due_day) {
                 ++unscheduled_mandatory;
                 continue;
             }
-            if (mandatory_patients[p_id]->surgery_release_day <= day && day <= mandatory_patients[p_id]->surgery_due_day) {
-                s_id = mandatory_patients[p_id]->surgeon_id;
+            if (patients[p_id].surgery_release_day <= day && day <= patients[p_id].surgery_due_day) {
+                s_id = patients[p_id].surgeon_id;
                 // check if the surgeon is available
-                if (surgeon[s_id].time_left[day] < mandatory_patients[p_id]->surgery_duration) {
-                    insertNodeInPQ(pq, makeHeapNode(p_id, 1, mandatory_patients[p_id]->surgery_due_day, 0, patients[p_id].length_of_stay));
+                if (surgeon[s_id].time_left[day] < patients[p_id].surgery_duration) {
+                    insertNodeInPQ(pq, makeHeapNode(p_id, 1, patients[p_id].surgery_due_day, 0, patients[p_id].length_of_stay));
                     continue;
                 }
                 // check if the OT is available
-                if (current_ot->time_left[day] < mandatory_patients[p_id]->surgery_duration) {
-                    for (j = 0; j < num_ots && assigned_ot == -1; ++j) {
-                        if (ot_data_arr[j]->time_left[day] >= mandatory_patients[p_id]->surgery_duration)
+                if (current_ot->time_left[day] < patients[p_id].surgery_duration) {
+                    for (j = 0; j < num_ots && assigned_ot == -1; j++) {
+                        if (ot_data_arr[j]->time_left[day] >= patients[p_id].surgery_duration)
                             assigned_ot = ot_data_arr[j]->id;
                     }
                     if (assigned_ot != -1) {
-                        current_ot_index = j;
+                        current_ot_index = j-1;
                         current_ot = ot_data_arr[current_ot_index];
-                        ot_data_arr[current_ot_index]->time_left -= mandatory_patients[p_id]->surgery_duration;
+                        ot_data_arr[current_ot_index]->time_left[day] -= patients[p_id].surgery_duration;
                     }
                     else {
                         // if true - it means no ot could be assigned to this patient - put him in PQ
-                        insertNodeInPQ(pq, makeHeapNode(p_id, 1, mandatory_patients[p_id]->surgery_due_day, 0,patients[p_id].length_of_stay));
+                        insertNodeInPQ(pq, makeHeapNode(p_id, 1, patients[p_id].surgery_due_day, 0,patients[p_id].length_of_stay));
                         continue;
                     }
                 }
                 else {
                     assigned_ot = current_ot->id;
-                    ot_data_arr[current_ot_index]->time_left -= mandatory_patients[p_id]->surgery_duration;
+                    ot_data_arr[current_ot_index]->time_left[day] -= patients[p_id].surgery_duration;
                 }
 
                 // if the control comes here - that means surgeon and OT are available and only room remains
                 // look for a suitable room
-                r_id = (mandatory_patients[p_id]->gen) ? findSuitableRoom(p_id, v_B) : findSuitableRoom(p_id, v_A);
-                if (r_id != -1) {
+                r_id = (patients[p_id].gen) ? findSuitableRoom(p_id, v_B) : findSuitableRoom(p_id, v_A);
+                if (r_id != -1 && surgeon[patients[p_id].surgeon_id].time_left[day] >= patients[p_id].surgery_duration) {
                     room[r_id].num_patients_allocated++;
-                    mandatory_patients[p_id]->admission_day = day;
-                    mandatory_patients[p_id]->assigned_ot = assigned_ot;
-                    mandatory_patients[p_id]->assigned_room_no = r_id;
+                    patients[p_id].admission_day = day;
+                    patients[p_id].assigned_ot = assigned_ot;
+                    patients[p_id].assigned_room_no = r_id;
+                    patients[p_id].is_admitted = 1;
+                    surgeon[patients[p_id].surgeon_id].time_left[day] -= patients[p_id].surgery_duration;
                 }
                 else
                     // put the patient in the PQ
-                    insertNodeInPQ(pq, makeHeapNode(p_id, 1, mandatory_patients[p_id]->surgery_due_day, 0,patients[p_id].length_of_stay));
+                    insertNodeInPQ(pq, makeHeapNode(p_id, 1, patients[p_id].surgery_due_day, 0,patients[p_id].length_of_stay));
             }
             else
                 if (day < mandatory_patients[p_id]->surgery_due_day) {
-                    insertNodeInPQ(pq, makeHeapNode(p_id, 1, mandatory_patients[p_id]->surgery_due_day, 0, patients[p_id].length_of_stay));
+                    insertNodeInPQ(pq, makeHeapNode(p_id, 1, patients[p_id].surgery_due_day, 0, patients[p_id].length_of_stay));
                     continue;
                 }
         }
@@ -528,7 +380,7 @@ void applyGeneticAlgorithm(PriorityQueue * pq)
         POPULATION[i][CHROMOSOME_SIZE] = evaluateFitnessScore(POPULATION[i], pq);
     memcpy(G_BEST, POPULATION[0], (CHROMOSOME_SIZE + 1) * sizeof(int));
     g_best = G_BEST[CHROMOSOME_SIZE];
-    printPopulation();
+    //printPopulation();
 
     //-------------------------------------------------------START ITERATION-----------------------------------------------------------------
 
@@ -581,7 +433,7 @@ int evaluateFitnessScore(int* chromosome, PriorityQueue* pq)
 
 void orderCrossover(void)
 {   // Apply Denver's Order Crossover on the two crossover_parents and generate two new offsprings.
-    int r1, r2, i;
+    int r1, r2, i, flag = 0;
 
     // Select two random crossover points
     do {
@@ -601,10 +453,37 @@ void orderCrossover(void)
 
     // Swap genes outside the crossover segment
     for (i = 0; i < CHROMOSOME_SIZE; ++i) {
-        if (i >= r1 && i <= r2)
+        if (i >= r1 && i <= r2) 
             continue;
-        CROSSOVER_OFFSPRING_STORAGE_PLACE[0][i] = CROSSOVER_PARENT_STORAGE_PLACE[1][i];
-        CROSSOVER_OFFSPRING_STORAGE_PLACE[1][i] = CROSSOVER_PARENT_STORAGE_PLACE[0][i];
+		flag = 0;
+        for (int j = r1; j <= r2; j++) {
+            if (CROSSOVER_PARENT_STORAGE_PLACE[1][i] == CROSSOVER_OFFSPRING_STORAGE_PLACE[0][j]) {
+				CROSSOVER_OFFSPRING_STORAGE_PLACE[1][i] = CROSSOVER_PARENT_STORAGE_PLACE[1][i];
+				flag = 1;
+                break;
+            }
+            /*else {
+
+            }*/ 
+        }
+        if (!flag) {
+            CROSSOVER_OFFSPRING_STORAGE_PLACE[0][i] = CROSSOVER_PARENT_STORAGE_PLACE[1][i];
+        }
+        flag = 0;
+        for (int j = r1; j <= r2; j++) {
+            if (CROSSOVER_PARENT_STORAGE_PLACE[0][i] == CROSSOVER_OFFSPRING_STORAGE_PLACE[1][j]) {
+                CROSSOVER_OFFSPRING_STORAGE_PLACE[0][i] = CROSSOVER_PARENT_STORAGE_PLACE[0][i];
+                flag = 1;
+                break;
+            }
+            /*else {
+
+            }*/
+        }
+        if (!flag) {
+            CROSSOVER_OFFSPRING_STORAGE_PLACE[1][i] = CROSSOVER_PARENT_STORAGE_PLACE[0][i];
+        }
+        
     }
 }
 
@@ -646,6 +525,15 @@ void generateNewChromosome(int chromo_num)
         swapGenes(chromo_num, r1, r2);
     }
 }
+
+
+void initializePopulation(void) {
+    POPULATION = calloc(POPULATION_SIZE , sizeof(int*));
+    for (int i = 0; i < POPULATION_SIZE; i++) {
+        POPULATION[i] = calloc(CHROMOSOME_SIZE , sizeof(int));
+    }
+}
+
 
 void generatePopulation(void)
 {
@@ -806,40 +694,59 @@ void mutationElitism(void)
 void initDataStructures(void)
 {
     int i;
-    MUTATED_OFFSPRING_STORAGE_PLACE = (int*)calloc(CHROMOSOME_SIZE + 1, sizeof(int));
-    MUTATE_PARENT_STORAGE_PLACE = (int*)calloc(CHROMOSOME_SIZE + 1, sizeof(int));
-    if (!MUTATED_OFFSPRING_STORAGE_PLACE || !MUTATE_PARENT_STORAGE_PLACE)
-        ASSERT(0, "Dynamic Memory Allocation Error for MUTATED_STORAGE_PLACE");
+    int* temp_int_ptr;
+    int** temp_int_ptr2;
 
-    CROSSOVER_OFFSPRING_STORAGE_PLACE = (int**)calloc(2, sizeof(int*));
-    for (i = 0; i < 2; ++i)
-        CROSSOVER_OFFSPRING_STORAGE_PLACE[i] = (int*)calloc(CHROMOSOME_SIZE + 1, sizeof(int));
-    if (!CROSSOVER_OFFSPRING_STORAGE_PLACE || !CROSSOVER_OFFSPRING_STORAGE_PLACE[0] || !CROSSOVER_OFFSPRING_STORAGE_PLACE[1])
-        ASSERT(0, "Dynamic Memory Allocation Error for CROSSOVER_OFFSPRING_STORAGE_PLACE");
+    // Allocate memory for single arrays
+    temp_int_ptr = (int*)calloc(CHROMOSOME_SIZE + 1, sizeof(int));
+    ASSERT(temp_int_ptr, "Dynamic Memory Allocation Error for MUTATED_OFFSPRING_STORAGE_PLACE");
+    MUTATED_OFFSPRING_STORAGE_PLACE = temp_int_ptr;
 
-    CROSSOVER_PARENT_STORAGE_PLACE = (int**)calloc(2, sizeof(int*));
-    for (i = 0; i < 2; ++i)
-        CROSSOVER_PARENT_STORAGE_PLACE[i] = (int*)calloc(CHROMOSOME_SIZE + 1, sizeof(int));
-    if (!CROSSOVER_PARENT_STORAGE_PLACE || !CROSSOVER_PARENT_STORAGE_PLACE[0] || !CROSSOVER_PARENT_STORAGE_PLACE[1])
-        ASSERT(0, "Dynamic Memory Allocation Error for CROSSOVER_PARENT_STORAGE_PLACE");
+    temp_int_ptr = (int*)calloc(CHROMOSOME_SIZE + 1, sizeof(int));
+    ASSERT(temp_int_ptr, "Dynamic Memory Allocation Error for MUTATE_PARENT_STORAGE_PLACE");
+    MUTATE_PARENT_STORAGE_PLACE = temp_int_ptr;
 
-    G_BEST = (int*)calloc(CHROMOSOME_SIZE + 1, sizeof(int));
-    if (!G_BEST)
-        ASSERT(0, "DYNAMIC MEMORY ALLOCATION ERROR FOR G_BEST");
+    temp_int_ptr = (int*)calloc(CHROMOSOME_SIZE + 1, sizeof(int));
+    ASSERT(temp_int_ptr, "Dynamic Memory Allocation Error for G_BEST");
+    G_BEST = temp_int_ptr;
 
-    POPULATION = (int**)calloc(POPULATION_SIZE, sizeof(int*));
-    if (!POPULATION)
-        ASSERT(0, "DYNAMIC MEMORY ALLOCATION ERROR FOR POPULATION");
+    // Allocate memory for crossover offspring storage
+    temp_int_ptr2 = (int**)calloc(2, sizeof(int*));
+    ASSERT(temp_int_ptr2, "Dynamic Memory Allocation Error for CROSSOVER_OFFSPRING_STORAGE_PLACE");
+    CROSSOVER_OFFSPRING_STORAGE_PLACE = temp_int_ptr2;
 
-    for (int i = 0; i < POPULATION_SIZE; ++i) {
-        POPULATION[i] = (int*)calloc(CHROMOSOME_SIZE + 1, sizeof(int));
-        if (!POPULATION[i])
-            ASSERT(0, "DYNAMIC MEMORY ALLOCATION ERROR FOR A CHROMOSOME");
-
-        // Set last column to -1
-        POPULATION[i][CHROMOSOME_SIZE] = -1;
+    for (i = 0; i < 2; ++i) {
+        temp_int_ptr = (int*)calloc(CHROMOSOME_SIZE + 1, sizeof(int));
+        ASSERT(temp_int_ptr, "Dynamic Memory Allocation Error for CROSSOVER_OFFSPRING_STORAGE_PLACE[i]");
+        CROSSOVER_OFFSPRING_STORAGE_PLACE[i] = temp_int_ptr;
     }
+
+    // Allocate memory for crossover parent storage
+    temp_int_ptr2 = (int**)calloc(2, sizeof(int*));
+    ASSERT(temp_int_ptr2, "Dynamic Memory Allocation Error for CROSSOVER_PARENT_STORAGE_PLACE");
+    CROSSOVER_PARENT_STORAGE_PLACE = temp_int_ptr2;
+
+    for (i = 0; i < 2; ++i) {
+        temp_int_ptr = (int*)calloc(CHROMOSOME_SIZE + 1, sizeof(int));
+        ASSERT(temp_int_ptr, "Dynamic Memory Allocation Error for CROSSOVER_PARENT_STORAGE_PLACE[i]");
+        CROSSOVER_PARENT_STORAGE_PLACE[i] = temp_int_ptr;
+    }
+
+    // Allocate memory for population
+    //temp_int_ptr2 = (int**)calloc(POPULATION_SIZE, sizeof(int*));
+    //ASSERT(temp_int_ptr2, "Dynamic Memory Allocation Error for POPULATION");
+    //POPULATION = temp_int_ptr2;
+
+    //for (i = 0; i < POPULATION_SIZE; ++i) {
+    //    temp_int_ptr = (int*)calloc(CHROMOSOME_SIZE + 1, sizeof(int));
+    //    ASSERT(temp_int_ptr, "Dynamic Memory Allocation Error for a CHROMOSOME");
+    //    POPULATION[i] = temp_int_ptr;
+
+    //    // Set last column to -1 (if required)
+    //    POPULATION[i][CHROMOSOME_SIZE] = -1;
+    //}
 }
+
 
 void freeDataStructures(void)
 {
@@ -877,7 +784,7 @@ void printPopulation(void)
 int main(void) {
     parse_json("data/instances/i04.json");
     PriorityQueue* pq;
-    srand(time(0));
+    srand(0);
     initDataStructures();
     pq = (PriorityQueue*)calloc(1, sizeof(PriorityQueue));
     if (!pq)
@@ -897,12 +804,13 @@ int main(void) {
     //append_optional_to_mandatory(sorted_mandatory_patients, sorted_optional_patients);
     //print_sorted_optional_array();
     //print_ots(ot);
+    initializePopulation();
     generatePopulation();
-    printPopulation();
-   // print_occupants();
-    //admitPatientsGA(&room_gender_map, pq, chromosome);
-    //applyGeneticAlgorithm(pq);
-    freeDataStructures();
+    //printPopulation();
+    //print_occupants();
+    //print_mandatory_patients();
+    applyGeneticAlgorithm(pq);
+//    freeDataStructures();
 
     /*
     create_dm_nurses_availability();
@@ -929,7 +837,6 @@ int main(void) {
     // print_nurses();
     // print_patients(patients);
     // print_occupants();
-    // print_mandatory_patients();
     // print_optional_patients();
 
     // Free allocated memory

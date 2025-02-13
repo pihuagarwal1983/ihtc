@@ -22,16 +22,18 @@ include_directories(
     ${LIB_DIR}/cJSON          # cJSON library
 )
 
-# Add source files (ihtc.c and cJSON.c)
+# Add source files (ihtc.c, ihtc_ga.c, ihtc_improved_heuristic.c, and cJSON.c)
 set(SOURCES
-    ${SRC_DIR}/ihtc.c         # Main source file
-    ${LIB_DIR}/cJSON/cJSON.c  # cJSON implementation
+    ${SRC_DIR}/ihtc.c                    # Main source file
+    ${SRC_DIR}/ihtc_ga.c                  # Genetic Algorithm implementation
+    ${SRC_DIR}/ihtc_improved_heuristic.c  # Improved heuristic implementation
+    ${LIB_DIR}/cJSON/cJSON.c              # cJSON implementation
 )
 
 # Define the executable target
 add_executable(IHTC ${SOURCES})
 
-# Ensure the `data`/`instances` and `data`/`testInstances` directories are copied to the build directory
+# Ensure the `data/instances` and `data/testInstances` directories are copied to the build directory
 file(COPY ${DATA_DIR}/instances DESTINATION ${CMAKE_BINARY_DIR}/data)
 file(COPY ${DATA_DIR}/testInstances DESTINATION ${CMAKE_BINARY_DIR}/data)
 

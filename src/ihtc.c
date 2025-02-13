@@ -1,50 +1,26 @@
-﻿#include <stdio.h>
-//#include <ncurses.h>
-//#include <conio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <ctype.h>
-#include <math.h>
-#include <time.h>
-#include "cJSON.h"
-#include <direct.h>    
-#include <stdbool.h>
-
-//#include <cassert>
-
-#define ASSERT(condition, message) \
-    do { \
-        if (!(condition)) { \
-            fprintf(stderr, "Assertion failed: %s\nFile: %s, Line: %d\n", message, __FILE__, __LINE__); \
-            exit(EXIT_FAILURE); \
-        } \
-    } while (0)
+﻿#include <definition.h>
 
 
 // Global declarations of variables
-int days;
-int skill_levels;
-int num_occupants;
-int num_patients;
-int num_surgeons;
-int num_ots;
-int num_rooms;
-int num_nurses;
-int mandatory_count = 0;
-int optional_count = 0;
-int current_ot_index = 0;
+int days;                      // Total number of days in the schedule
+int skill_levels;              // Total number of skill levels
+int num_occupants;             // Total number of occupants
+int num_patients;              // Total number of patients
+int num_surgeons;              // Total number of surgeons
+int num_ots;                   // Total number of operating theaters (OTs)
+int num_rooms;                 // Total number of rooms
+int num_nurses;                // Total number of nurses
+int mandatory_count = 0;       // Counter for mandatory patients
+int optional_count = 0;        // Counter for optional patients
+int current_ot_index = 0;      // Index to track current operating theater
 
-// int is_admitted[1000] = {0}; // we're not using this array anywhere so let's comment it out
+
+//// int is_admitted[1000] = {0}; // we're not using this array anywhere so let's comment it out
 int num_gender_A_rooms, num_gender_B_rooms, num_empty_rooms;
 int* current_size_dm_nurse;
 int* room_gender_map;
-
+//
 int **size_of_room_schedule;
-
-// Enums for the mapped values
-typedef enum { A, B } gender;
-typedef enum { early, late, night } shift_types;
-typedef enum { optional, mandatory } PatientType;
 
 const char* gender_to_string(gender g) {
    switch (g) {
@@ -91,203 +67,22 @@ int str2int(char* a)
    }
    return number;
 }
-// Struct definitions
-typedef struct {
-   int day;
-   shift_types shift_time;
-   int max_load;
-   int* rooms;
-   int num_rooms;
-} Shifts;
-
-typedef struct {
-   int id;
-   int skill_level;
-   Shifts* shift;
-   int num_shifts;
-} Nurses;
 
 Nurses* nurses;
 Nurses*** dm_nurses_availability;  //nurse assignment
 int** max_load_updated; //nurse assignment
-
-typedef struct {
-   int room_mixed_age;
-   int room_nurse_skill;
-   int continuity_of_care;
-   int nurse_excessive_workload;
-   int open_operating_theater;
-   int surgeon_transfer;
-   int patient_delay;
-   int unscheduled_optional;
-} Weights;
-
-
 Weights* weights = NULL; // Global pointer for weights
-typedef struct {
-   int id;
-   int length_of_stay;
-   int room_id;
-   char* age;
-   gender gen;
-   int* workload_produced;
-   int* skill_level_required;
-   int is_admitted;
-} Occupants;
-
-
 Occupants* occupants = NULL; // Global pointer for occupants
-typedef struct {
-   int id;
-   int mandatory;
-   gender gen;
-   char* age_group;
-   int length_of_stay;
-   int surgery_release_day;
-   int surgery_due_day;
-   int surgery_duration;
-   int surgeon_id;
-   int* incompatible_room_ids;
-   int num_incompatible_rooms;
-   int* workload_produced;
-   int* skill_level_required;
-   int assigned_room_no;
-   int assigned_ot;
-   int admission_day;
-   int is_admitted;
-} Patient;
-
-
 Patient* patients;
 Patient** mandatory_patients = NULL;
 Patient** optional_patients = NULL;
 Patient**** room_schedule;
-
-typedef struct {
-   int id;
-   int* max_surgery_time;
-   int* time_left; // default: max_surgery_time
-   int* patients_assigned;
-   int num_assigned_patients; // a fixed number - how many patients are assigned to this surgeon
-   int current_size; // dynamic size of the patients_assigned array
-} Surgeon;
-
-
 Surgeon* surgeon;
-typedef struct {
-   int id;
-   int* max_ot_time;
-   int* time_left; // default: max_ot_time
-} OTs;
-
-
 OTs* ot;
-typedef struct {
-   int id;
-   int cap;
-   int num_patients_allocated;
-   // int *patients_allocated;
-   int occupants_cap;
-   int* nurses_alloted;
-   int length_of_nurses_alloted;
-} Rooms;
-// one idea is that make the patients_assigned array a static array and remove num_patients_assigned field from the structure.
-
 Rooms* room;
-
-typedef struct RoomsList {
-   Rooms* pointer;
-   struct RoomsList* next;
-   struct RoomsList* prev;
-} GenderRoom;
 GenderRoom* gender_A_rooms = NULL, * gender_B_rooms = NULL, * empty_rooms = NULL;
-
-typedef struct {
-    Rooms** data;
-    int size;
-    int capacity;
-}RoomVector;
-
 RoomVector *v_A, *v_B, *v_empty;
-
-typedef struct {
-   int load_sum;
-   int max_skill_req;
-} Rooms_req;
 Rooms_req** rooms_requirement;
-
-typedef struct {
-   int surgeon_id;
-   int* assigned_patients;
-   int num_assigned_patients;
-   int surgery_duration_sum;
-   int isNull;
-   /* added isNull in the struct cuz s_data_arr has null values as well and we need to sort that array on the basis of
-   surgery_duration_sum. if that cell is null then we cant really sort the array as that may contrive problems while selecting the pivot
-   so for those null pointers we'll create this same structure and put 1 in the isNull field. this way we'll know that this pointer is
-   a null one and we can deal with it accordingly.
-   */
-} Surgeon_data;
-
-
-// Define the HeapNode and PriorityQueue structures
-typedef struct {
-    int patient_id;  // Unique ID for patient
-    int mandatory;   // 1 if mandatory, 0 otherwise
-    int due_day;     // The day when the patient is due
-    int delay;      // Lower is better
-    int los;
-} HeapNode;
-
-typedef struct {
-   HeapNode* data; // Dynamically allocated array for heap nodes
-   int current_size;       // Current number of elements in the priority queue
-   int capacity;   // Maximum capacity of the priority queue
-} PriorityQueue;
-
-
-typedef struct LL {
-   Patient* pointer;
-   struct LL* next, * prev;
-} Node;
-
-// ----------------------------------------------BELOW: FUNCTION PROTOTYPES FOR PAS AND SCP--------------------------------------------
-
-GenderRoom* appendGenderRoomNode(GenderRoom*, GenderRoom*);
-GenderRoom* makeGenderRoomNode(Rooms*);
-void free_s_data_arr(Surgeon_data**, int);
-//void make_3_room_arrays(int*);
-void update_LOS_of_patients(int);
-int findSuitableRoom(int, RoomVector *);
-void sort_s_data_arr(Surgeon_data**, int, Node*);
-void sort_ot_data_arr(OTs**, int);
-int find_max_surgeon_id(Node*);
-//OTs* admitOptionalFromPQ(PriorityQueue*, int, OTs**, OTs*);
-//OTs* admitMandatoryFromPQ(PriorityQueue*, int, OTs**, OTs*, int);
-GenderRoom* deleteGenderRoomNode(GenderRoom*, GenderRoom*);
-//void free_3_room_arrays(void);
-GenderRoom* removeAndAppendGenderRoom(int, GenderRoom*);
-void admit_patients(int*, PriorityQueue*);
-void init_Rooms(RoomVector* vector, int initialcap);
-void pushback(RoomVector* vector, Rooms* room);
-Rooms* removebyid(RoomVector* vector, int room_id);
-void moveRoom(RoomVector* source, RoomVector* destination, int room_id);
-void freevector(RoomVector* vector);
-
-// ----------------------------------------------ABOVE: FUNCTION PROTOTYPES FOR PAS AND SCP--------------------------------------------
-
-
-// Function prototypes
-void initPQ(PriorityQueue* pq, int initialCapacity);
-void insertNodeInPQ(PriorityQueue* pq, HeapNode node);
-HeapNode extractMaxFromPQ(PriorityQueue* pq);
-HeapNode peekMaxFromPQ(PriorityQueue* pq);
-int isEmptyPQ(PriorityQueue* pq);
-void heapifyUp(PriorityQueue* pq, int index);
-void heapifyDown(PriorityQueue* pq, int index);
-int compareNodesForPQ(HeapNode a, HeapNode b);
-void resizePQ(PriorityQueue* pq);
-void freePQ(PriorityQueue* pq);
 
 // Function to parse occupants
 void parse_occupants(cJSON* occupants_array) {
@@ -3066,39 +2861,21 @@ void create_json_file(Patient* patients, int num_patients, Nurses* nurse, int nu
 //   pq = (PriorityQueue*)calloc(1, sizeof(PriorityQueue));
 //   initPQ(pq, 20); // InitalCapacity = 20. It'll resizePQ itself if we try to insert more HeapNodes in it. 
 //   populate_room_gender_map(&room_gender_map);
-//   print_map(&room_gender_map);
 //   sort_mandatory_patients_on_release_day(mandatory_patients, mandatory_count);
-//   sort_mandatory_patients_on_LOS();
-//   //print_sorted_mandatory_array();
 //   sort_optional_patients_on_release_day(optional_patients, optional_count);
 //   append_optional_to_mandatory(sorted_mandatory_patients, sorted_optional_patients);
 //   admit_patients_2(room_gender_map, pq);
 //   create_dm_nurses_availability();
 //   sorting_nurse_id_max_load();
 //   create_3d_array();
-//   //print_room_schedule();
 //   initialize_rooms_req(num_rooms);
 //   create_rooms_req();
-//  //print_rooms_req();
-//   nurse_assignments();
-//
-//  // print_dm_nurses();
+//  nurse_assignments();
 //   create_json_file(patients , num_patients , nurses , num_nurses,num_rooms, "i16","D:/major_code/build/output");
-//   // print_surgeons(surgeon);
-//   //print_ots(ot);
-//   // print_rooms();
-//    //print_nurses();
-//   // print_patients(patients);
-//   // print_occupants();
-//   // print_mandatory_patients();
-//   // print_optional_patients();
-//
-//   print_ots(ot);
-//   print_surgeons(surgeon);
-//  // printPQWithEdges(pq);
-//   //Free allocated memory
-//  // free_patients_sorted_array(sorted_mandatory_patients);
-//   //free_patients_sorted_array(sorted_optional_patients);
+////   // print_surgeons(surgeon);
+////   //print_ots(ot);
+////   // print_rooms();
+////   //Free allocated memory
 //   free_occupants();
 //   free_patients();
 //   free_surgeons();
@@ -3108,13 +2885,4 @@ void create_json_file(Patient* patients, int num_patients, Nurses* nurse, int nu
 //   free(weights);
 //   return 0;
 //}
-//
-//
-///*
-//UPDATES SECTION: Here we will put all the updates related to this program. Whether it's about the heuristic or anything else.
-//1. Wrote code for admit_patients function and some utility functions
-//2. Working on: written in admit_patients function
-//3. Surgeons sorting function needs updation - we have to account for null values as well.
-//*/
-//
-//
+
