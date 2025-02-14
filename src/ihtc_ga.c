@@ -106,7 +106,22 @@ extern HeapNode makeHeapNode(int p_id, int mandatory, int due_day, int delay, in
 extern void initialize_room_gender_map(int** room_gender_map);
 extern void populate_room_gender_map(int** room_gender_map);
 extern void create_json_file(Patient* patients, int num_patients, Nurses* nurse, int num_nurses, int num_rooms, const char* instance_name, const char* output_folder);
+extern void create_dm_nurses_availability();
+extern void sorting_nurse_id_max_load();
+extern void create_3d_array();
+extern void print_room_schedule();
+extern void initialize_rooms_req(num_rooms);
+extern void create_rooms_req();
+extern void print_rooms_req();
+extern void nurse_assignments();
 
+
+void empty_pq(PriorityQueue* pq) {
+    HeapNode node;
+    while (pq->current_size) {
+        node = extractMaxFromPQ(pq);
+    }
+}
 
 void update_LOS_of_patients_GA(int d, int* chromosome) {
     /* Check if any patient's length_of_stay is over and if yes then remove that patient from -
@@ -262,7 +277,7 @@ int admitPatientsGA(int** room_gender_map, PriorityQueue* pq, int* chromosome)
 
     //----------------------------------------------------------apply checks and ADMIT PATIENTS------------------------------------------------------
 
-    for (day = 0, p_counter = 0; day < days; ++day) {
+    for (day = 0; day < days; ++day) {
         if(day)
             update_LOS_of_patients_GA(day, chromosome);
         current_ot_index = 0;
@@ -275,16 +290,18 @@ int admitPatientsGA(int** room_gender_map, PriorityQueue* pq, int* chromosome)
         if (!current_ot)
             continue;
 
-        for (; p_counter < CHROMOSOME_SIZE; ++p_counter) {
+        for (p_counter = 0; p_counter < CHROMOSOME_SIZE; ++p_counter) {
             assigned_ot = -1;
             p_id = chromosome[p_counter];
+
+            if (patients[p_id].is_admitted) continue;
             // if the release day is greater than current_day (day) - go to the next day and then try to admit this patient
-            if (day < patients[p_id].surgery_release_day) {
-                ++p_counter;
-                break;
+            if (day < patients[p_id].surgery_release_day && !patients[p_id].is_admitted) {
+                //++p_counter;
+                continue;
             }
             // if current_day (day) is greater than the due day of the patient - increase the unscheduled_mandatory count and go to the next patient
-            if (day > patients[p_id].surgery_due_day) {
+            if (day > patients[p_id].surgery_due_day && !patients[p_id].is_admitted ) {
                 ++unscheduled_mandatory;
                 continue;
             }
@@ -388,6 +405,8 @@ void applyGeneticAlgorithm(PriorityQueue * pq)
         if ((rand() / (float)RAND_MAX) <= p_c) {
             crossoverTournamentSelection();
             orderCrossover();
+			//printf("\nCrossover Offsprings: ");
+            
             // calculate the fitness of the 2 new offsprings
             for (j = 0; j < 2; ++j)
                 CROSSOVER_OFFSPRING_STORAGE_PLACE[j][CHROMOSOME_SIZE] = evaluateFitnessScore(CROSSOVER_OFFSPRING_STORAGE_PLACE[j], pq);
@@ -398,6 +417,10 @@ void applyGeneticAlgorithm(PriorityQueue * pq)
         }
         else {
             mutationTournamentSelection();
+			printf("\nMutation Parent: ");
+            for (int i = 0; i < CHROMOSOME_SIZE; i++) {
+				printf("%d\t", MUTATE_PARENT_STORAGE_PLACE[i]);
+            }
             swapMutation();
             // calculate the fitness of the new offspring
             MUTATED_OFFSPRING_STORAGE_PLACE[CHROMOSOME_SIZE] = evaluateFitnessScore(MUTATED_OFFSPRING_STORAGE_PLACE, pq);
@@ -426,14 +449,32 @@ int evaluateFitnessScore(int* chromosome, PriorityQueue* pq)
 
     unscheduled_mandatory = admitPatientsGA(&room_gender_map, pq, chromosome);
     total_unscheduled_mandatory = unscheduled_mandatory + pq->current_size;
+    empty_pq(pq);
+
 
     // FITNESS = MANDATORY PATIENTS WHO WERE ADMITTED DURING THE SCHEDULING PERIOD
     return (mandatory_count - total_unscheduled_mandatory);
 }
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdbool.h>
 
-void orderCrossover(void)
-{   // Apply Denver's Order Crossover on the two crossover_parents and generate two new offsprings.
-    int r1, r2, i, flag = 0;
+void orderCrossover(void) {
+    int r1, r2, i, k, m;
+    int max = 0;
+    for (int i = 0; i < CHROMOSOME_SIZE; i++) {
+        if (max < CROSSOVER_PARENT_STORAGE_PLACE[0][i])
+            max = CROSSOVER_PARENT_STORAGE_PLACE[0][i];
+    }
+
+    // Dynamic allocation for visited check
+    bool* visited1 = (bool*)calloc(max + 1, sizeof(bool));
+    bool* visited2 = (bool*)calloc(max + 1, sizeof(bool));
+
+    if (!visited1 || !visited2) {
+        printf("Memory allocation failed!\n");
+        exit(1);
+    }
 
     // Select two random crossover points
     do {
@@ -442,54 +483,70 @@ void orderCrossover(void)
     } while (r1 == r2);
 
     if (r1 > r2) {
-        r1 += r2;
-        r2 = r1 - r2;
-        r1 -= r2;
+        int temp = r1;
+        r1 = r2;
+        r2 = temp;
     }
 
-    // Copy parents to offspring storage directly
-    memcpy(CROSSOVER_OFFSPRING_STORAGE_PLACE[0], CROSSOVER_PARENT_STORAGE_PLACE[0], (CHROMOSOME_SIZE + 1) * sizeof(int));
-    memcpy(CROSSOVER_OFFSPRING_STORAGE_PLACE[1], CROSSOVER_PARENT_STORAGE_PLACE[1], (CHROMOSOME_SIZE + 1) * sizeof(int));
-
-    // Swap genes outside the crossover segment
-    for (i = 0; i < CHROMOSOME_SIZE; ++i) {
-        if (i >= r1 && i <= r2) 
-            continue;
-		flag = 0;
-        for (int j = r1; j <= r2; j++) {
-            if (CROSSOVER_PARENT_STORAGE_PLACE[1][i] == CROSSOVER_OFFSPRING_STORAGE_PLACE[0][j]) {
-				CROSSOVER_OFFSPRING_STORAGE_PLACE[1][i] = CROSSOVER_PARENT_STORAGE_PLACE[1][i];
-				flag = 1;
-                break;
-            }
-            /*else {
-
-            }*/ 
-        }
-        if (!flag) {
-            CROSSOVER_OFFSPRING_STORAGE_PLACE[0][i] = CROSSOVER_PARENT_STORAGE_PLACE[1][i];
-        }
-        flag = 0;
-        for (int j = r1; j <= r2; j++) {
-            if (CROSSOVER_PARENT_STORAGE_PLACE[0][i] == CROSSOVER_OFFSPRING_STORAGE_PLACE[1][j]) {
-                CROSSOVER_OFFSPRING_STORAGE_PLACE[0][i] = CROSSOVER_PARENT_STORAGE_PLACE[0][i];
-                flag = 1;
-                break;
-            }
-            /*else {
-
-            }*/
-        }
-        if (!flag) {
-            CROSSOVER_OFFSPRING_STORAGE_PLACE[1][i] = CROSSOVER_PARENT_STORAGE_PLACE[0][i];
-        }
-        
+    // Initialize offspring with -1 to identify unassigned positions
+    for (i = 0; i < CHROMOSOME_SIZE; i++) {
+        CROSSOVER_OFFSPRING_STORAGE_PLACE[0][i] = -1;
+        CROSSOVER_OFFSPRING_STORAGE_PLACE[1][i] = -1;
     }
+
+    // Step 1: Copy the segment from r1 to r2 and mark visited elements **safely**
+    for (i = r1; i <= r2; i++) {
+        int gene1 = CROSSOVER_PARENT_STORAGE_PLACE[0][i];
+        int gene2 = CROSSOVER_PARENT_STORAGE_PLACE[1][i];
+
+        CROSSOVER_OFFSPRING_STORAGE_PLACE[0][i] = gene1;
+        CROSSOVER_OFFSPRING_STORAGE_PLACE[1][i] = gene2;
+
+        if (gene1 >= 0)
+            visited1[gene1] = true;
+
+        if (gene2 >= 0)
+            visited2[gene2] = true;
+    }
+
+    // Step 2: Fill remaining positions while maintaining order
+    k = (r2 + 1) % CHROMOSOME_SIZE;
+    m = k;
+
+    for (i = 0; i < CHROMOSOME_SIZE; i++) {
+        int index = (r2 + 1 + i) % CHROMOSOME_SIZE;
+
+        int gene1 = CROSSOVER_PARENT_STORAGE_PLACE[0][index];
+        if (gene1 >= 0 && !visited1[gene1]) {
+            while (CROSSOVER_OFFSPRING_STORAGE_PLACE[0][k] != -1) {
+                k = (k + 1) % CHROMOSOME_SIZE;
+            }
+            CROSSOVER_OFFSPRING_STORAGE_PLACE[0][k] = gene1;
+            visited1[gene1] = true;
+        }
+
+        int gene2 = CROSSOVER_PARENT_STORAGE_PLACE[1][index];
+        if (gene2 >= 0 && !visited2[gene2]) {
+            while (CROSSOVER_OFFSPRING_STORAGE_PLACE[1][m] != -1) {
+                m = (m + 1) % CHROMOSOME_SIZE;
+            }
+            CROSSOVER_OFFSPRING_STORAGE_PLACE[1][m] = gene2;
+            visited2[gene2] = true;
+        }
+    }
+
+    free(visited1);
+    free(visited2);
 }
+
+   
 
 void swapMutation(void)
 {   // take the offspring from MUTATED_OFFSPRING_STORAGE_PLACE and mutate it using SWAP MUTATION method
     int r1, r2;
+    for (int i = 0; i < CHROMOSOME_SIZE; i++) {
+        MUTATED_OFFSPRING_STORAGE_PLACE[i] = MUTATE_PARENT_STORAGE_PLACE[i];
+    }
 
     do {
         r1 = rand() % CHROMOSOME_SIZE;
@@ -782,7 +839,7 @@ void printPopulation(void)
 //---------------------------------------------------------ABOVE: GENETIC ALGORITHM-------------------------------------------------------------
 
 int main(void) {
-    parse_json("data/instances/i04.json");
+    parse_json("data/instances/i06.json");
     PriorityQueue* pq;
     srand(0);
     initDataStructures();
@@ -812,7 +869,7 @@ int main(void) {
     applyGeneticAlgorithm(pq);
 //    freeDataStructures();
 
-    /*
+   
     create_dm_nurses_availability();
     sorting_nurse_id_max_load();
     create_3d_array();
@@ -827,9 +884,9 @@ int main(void) {
     // print_mandatory_patients();
     //print_sorted_mandatory_array();
     //print_sorted_mandatory_patients();
-    */
+    
 
-    create_json_file(patients, num_patients, nurses, num_nurses, num_rooms, "i04", "D:/major_code/build/output");
+    create_json_file(patients, num_patients, nurses, num_nurses, num_rooms, "i06", "D:/major_code/build/output");
 
     // print_surgeons(surgeon);
     //print_ots(ot);
