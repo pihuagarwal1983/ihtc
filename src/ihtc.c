@@ -179,6 +179,7 @@ void assign_occupants_to_rooms(void) {
    for (i = 0; i < num_occupants; ++i) {
       r_id = occupants[i].room_id;
       room[r_id].occupants_cap++;
+	  room[r_id].gen = occupants[i].gen;
    }
 }
 
@@ -572,7 +573,7 @@ void parse_rooms(cJSON* room_array) {
    for (int i = 0; i < num_rooms; i++) {
       cJSON* item = cJSON_GetArrayItem(room_array, i);
       if (!item) continue;
-      room[i].nurses_alloted = NULL;
+      room[i].nurses_alloted = (int*)calloc(1,sizeof(int));
       cJSON* id_json = cJSON_GetObjectItem(item, "id");
       // room[i].occupied_cap = -1;
       if (id_json && cJSON_IsString(id_json)) room[i].id = str2int(id_json->valuestring);
@@ -583,6 +584,7 @@ void parse_rooms(cJSON* room_array) {
       cJSON* capacity_json = cJSON_GetObjectItem(item, "capacity");
       if (capacity_json && cJSON_IsNumber(capacity_json)) room[i].cap = capacity_json->valueint;
       else printf("Missing or invalid capacity for room at index %d. Defaulting to 0.\n", i);
+      room[i].gen = -1;
    }
 }
 
@@ -665,6 +667,7 @@ void parse_nurse(cJSON* nurses_array) {
                   printf("Missing or invalid max load for nurse %d, shift %d.\n", i, j);
                }
                nurses[i].shift[j].rooms = (int*)calloc(1,sizeof(int));  // Initialize rooms as NULL
+               nurses[i].shift[j].rooms = NULL;
                nurses[i].shift[j].num_rooms = 0; // Initialize num_rooms to 0
             }
          }
@@ -1627,7 +1630,7 @@ int findSuitableRoom(int p_id, RoomVector* vector) {
         r_id = vector->data[i]->id;
 
         // Check if room is full
-        if (room[r_id].cap == (room[r_id].num_patients_allocated + room[r_id].occupants_cap)) {
+        if ((room[r_id].cap == (room[r_id].num_patients_allocated + room[r_id].occupants_cap)) || room[r_id].gen != g) {
             continue;
         }
 
@@ -1641,11 +1644,6 @@ int findSuitableRoom(int p_id, RoomVector* vector) {
 
         // If incompatible, skip this room
         if (flag) continue;
-
-        // Check workload constraint before assigning
-        /*if (room[r_id].workload + patients[p_id].workload > MAX_WORKLOAD_LIMIT) {
-            continue;
-        }*/
 
         return r_id; // Found a suitable room
     }
@@ -1672,13 +1670,9 @@ int findSuitableRoom(int p_id, RoomVector* vector) {
             // If incompatible, skip this room
             if (flag) continue;
 
-            // Check workload constraint before assigning
-            /*if (room[r_id].workload + patients[p_id].workload > MAX_WORKLOAD_LIMIT) {
-                continue;
-            }*/
-
             // Move room from empty list to the main vector
             moveRoom(v_empty, vector, r_id);
+            room[r_id].gen = g;
 
             return r_id; // Found a suitable room
         }
@@ -1714,6 +1708,7 @@ void update_LOS_of_patients(int d) {
              // remove the room from the associated gender array and append at the head of the empty_array linked list
              //g ? removeAndAppendGenderRoom(r_id, gender_B_rooms) : removeAndAppendGenderRoom(r_id, gender_A_rooms);
              g ? moveRoom(v_B, v_empty, r_id) : moveRoom(v_A, v_empty, r_id);
+			 room[r_id].gen = -1;
          }
       }
    }
@@ -1744,6 +1739,7 @@ void update_LOS_of_patients(int d) {
                 if (!room[r_id].occupants_cap && !room[r_id].num_patients_allocated) {
                     // remove this room from the associated gender array and append it in empty_rooms array
                     g ? moveRoom(v_B, v_empty, r_id) : moveRoom(v_A, v_empty, r_id);
+                    room[r_id].gen = -1;
                 }
             }
          }
@@ -2757,14 +2753,14 @@ void nurse_assignments() {
                 }
 
                 if (m < arr_size && nurse_to_be_assigned != NULL) {
-                    //int* temp = (int*)realloc(room[j].nurses_alloted, (room[j].length_of_nurses_alloted + 1) * sizeof(int));
-                    /*if (temp == NULL) {
+                    int* temp = (int*)realloc(room[j].nurses_alloted, (room[j].length_of_nurses_alloted + 1) * sizeof(int));
+                    if (temp == NULL) {
                         perror("Memory allocation failed for nurses_alloted");
                         exit(EXIT_FAILURE);
                     }
 
                     room[j].nurses_alloted = temp;
-                    room[j].nurses_alloted[room[j].length_of_nurses_alloted++] = nurse_to_be_assigned->id;*/
+                    room[j].nurses_alloted[room[j].length_of_nurses_alloted++] = nurse_to_be_assigned->id;
                     max_load_updated[nurse_to_be_assigned->id][3 * i + k] -= rooms_requirement[j][3 * i + k].load_sum;
 
                     // Assign room to nurse's shift, ensuring no duplicates
@@ -2849,8 +2845,8 @@ void create_json_file(Patient* patients, int num_patients, Nurses* nurse, int nu
 
     // Calculate ID padding sizes
     int patient_digits = (num_patients > 1) ? ((int)log10(num_patients) + 1) : 1;
-    int nurse_digits = (num_nurses > 1) ? ((int)log10(num_nurses) + 2) : 1;
-    int room_digits = (num_rooms > 1) ? ((int)log10(num_rooms) + 1) : 1;
+    int nurse_digits = (num_nurses > 1) ? ((int)log10(num_nurses) + 1) : 1;
+    int room_digits = (num_rooms > 1) ? ((int)log10(num_rooms) + 0) : 1;
     int ot_digits = (num_rooms > 1) ? ((int)log10(num_ots) + 0) : 1;
 
     // Write JSON data
@@ -2906,7 +2902,7 @@ void create_json_file(Patient* patients, int num_patients, Nurses* nurse, int nu
 
 //int main(void) {
 //
-//   parse_json("data/instances/i16.json");
+//   parse_json("data/instances/i06.json");
 //   PriorityQueue* pq;
 //
 //   initialize_room_gender_map(&room_gender_map);
@@ -2922,6 +2918,7 @@ void create_json_file(Patient* patients, int num_patients, Nurses* nurse, int nu
 //   sort_mandatory_patients_on_release_day(mandatory_patients, mandatory_count);
 //   sort_optional_patients_on_release_day(optional_patients, optional_count);
 //   append_optional_to_mandatory(sorted_mandatory_patients, sorted_optional_patients);
+//   print_rooms();
 //   admit_patients_2(room_gender_map, pq);
 //   admit_remaining_patients(pq);
 //   create_dm_nurses_availability();
@@ -2930,7 +2927,7 @@ void create_json_file(Patient* patients, int num_patients, Nurses* nurse, int nu
 //   initialize_rooms_req(num_rooms);
 //   create_rooms_req();
 //  nurse_assignments();
-//   create_json_file(patients , num_patients , nurses , num_nurses,num_rooms, "i16","D:/major_code/build/output");
+//   create_json_file(patients , num_patients , nurses , num_nurses,num_rooms, "i06","D:/major_code/build/output");
 ////   // print_surgeons(surgeon);
 ////   //print_ots(ot);
 ////   // print_rooms();
