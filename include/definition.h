@@ -6,6 +6,7 @@
 #include <time.h>
 #include "cJSON.h"
 #include <direct.h>    
+//#include <unistd.h>
 #include <stdbool.h>
 
 // Assertions for debugging
@@ -102,6 +103,7 @@ typedef struct {
     int occupants_cap;
     int* nurses_alloted;
     int length_of_nurses_alloted;
+    gender gen;
 } Rooms;
 
 typedef struct RoomsList {
