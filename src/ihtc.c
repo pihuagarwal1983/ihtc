@@ -817,7 +817,7 @@ void print_rooms() {
       return;
    }
    for (int i = 0; i < num_rooms; i++)
-      printf("%d\t%d\t%d\n", room[i].id, room[i].cap, room[i].num_patients_allocated);
+      printf("%d\t%d\t%d\t%d\n", room[i].id, room[i].cap, room[i].num_patients_allocated,room[i].occupants_cap);
    printf("\n-----------------------------------\n");
 }
 
@@ -1584,17 +1584,24 @@ void freevector(RoomVector* vector) {
 
 
 void make_3_vectors(int** room_gender_map) {
+    /*v_A = createVector();
+    v_B = createVector();
+    v_empty = createVector();*/
+
     init_Rooms(v_A, 2);
     init_Rooms(v_B, 2);
     init_Rooms(v_empty, 2);
 
+  //  printf("num_rooms = %d\n", num_rooms);  // Debugging
+
     for (int i = 0; i < num_rooms; i++) {
         if ((*room_gender_map)[i] == -1)
             pushback(v_empty, &room[i]);
-        else if ((*room_gender_map)[i] == 0)
+        else if ((*room_gender_map)[i] == 0) 
             pushback(v_A, &room[i]);
-        else
-            pushback(v_B, &room[i]);
+        
+            else
+                pushback(v_B, &room[i]);   
     }
 }
 
@@ -1630,7 +1637,7 @@ int findSuitableRoom(int p_id, RoomVector* vector) {
         r_id = vector->data[i]->id;
 
         // Check if room is full
-        if ((room[r_id].cap == (room[r_id].num_patients_allocated + room[r_id].occupants_cap)) || room[r_id].gen != g) {
+        if ((room[r_id].cap == (room[r_id].num_patients_allocated + room[r_id].occupants_cap))) {
             continue;
         }
 
@@ -1644,7 +1651,7 @@ int findSuitableRoom(int p_id, RoomVector* vector) {
 
         // If incompatible, skip this room
         if (flag) continue;
-
+       // room[r_id].gen = g;
         return r_id; // Found a suitable room
     }
 
@@ -1655,9 +1662,9 @@ int findSuitableRoom(int p_id, RoomVector* vector) {
             r_id = v_empty->data[i]->id;
 
             // Check if room is full
-            if (room[r_id].cap == (room[r_id].num_patients_allocated + room[r_id].occupants_cap)) {
+           /* if (room[r_id].cap == (room[r_id].num_patients_allocated + room[r_id].occupants_cap)) {
                 continue;
-            }
+            }*/
 
             // Check for incompatible rooms
             for (j = 0; j < patients[p_id].num_incompatible_rooms; ++j) {
@@ -1672,7 +1679,7 @@ int findSuitableRoom(int p_id, RoomVector* vector) {
 
             // Move room from empty list to the main vector
             moveRoom(v_empty, vector, r_id);
-            room[r_id].gen = g;
+            room[r_id].gen = patients[p_id].gen;
 
             return r_id; // Found a suitable room
         }
@@ -2845,8 +2852,8 @@ void create_json_file(Patient* patients, int num_patients, Nurses* nurse, int nu
 
     // Calculate ID padding sizes
     int patient_digits = (num_patients > 1) ? ((int)log10(num_patients) + 1) : 1;
-    int nurse_digits = (num_nurses > 1) ? ((int)log10(num_nurses) + 1) : 1;
-    int room_digits = (num_rooms > 1) ? ((int)log10(num_rooms) + 0) : 1;
+    int nurse_digits = (num_nurses > 1) ? ((int)log10(num_nurses) + 2) : 1;
+    int room_digits = (num_rooms > 1) ? ((int)log10(num_rooms) + 1) : 1;
     int ot_digits = (num_rooms > 1) ? ((int)log10(num_ots) + 0) : 1;
 
     // Write JSON data
@@ -2902,9 +2909,9 @@ void create_json_file(Patient* patients, int num_patients, Nurses* nurse, int nu
 
 //int main(void) {
 //
-//   parse_json("data/instances/i06.json");
+//   parse_json("data/instances/i02.json");
 //   PriorityQueue* pq;
-//
+//   printf("\n%d\n", mandatory_count);
 //   initialize_room_gender_map(&room_gender_map);
 //
 //   pq = (PriorityQueue*)calloc(1, sizeof(PriorityQueue));
@@ -2927,7 +2934,7 @@ void create_json_file(Patient* patients, int num_patients, Nurses* nurse, int nu
 //   initialize_rooms_req(num_rooms);
 //   create_rooms_req();
 //  nurse_assignments();
-//   create_json_file(patients , num_patients , nurses , num_nurses,num_rooms, "i06","D:/major_code/build/output");
+//   create_json_file(patients , num_patients , nurses , num_nurses,num_rooms, "i02","D:/major_code/build/output");
 ////   // print_surgeons(surgeon);
 ////   //print_ots(ot);
 ////   // print_rooms();
