@@ -26,6 +26,7 @@ include_directories(
 set(SOURCES
     ${SRC_DIR}/ihtc.c                    # Main source file
     ${SRC_DIR}/ihtc_ga.c                  # Genetic Algorithm implementation
+    ${SRC_DIR}/ihtc_ga_optional.c
     ${SRC_DIR}/ihtc_improved_heuristic.c  # Improved heuristic implementation
     ${LIB_DIR}/cJSON/cJSON.c              # cJSON implementation
 )

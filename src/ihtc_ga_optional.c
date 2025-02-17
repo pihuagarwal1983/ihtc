@@ -47,7 +47,7 @@ typedef struct {
 extern RoomVector* v_A, * v_B, * v_empty;
 
 const int POPULATION_SIZE = 1000, NUM_ITER = 100000, CONVERGENCE_STOPPING_CRITERION = 100;
-int** POPULATION, * G_BEST, CHROMOSOME_SIZE;
+int** POPULATION, * G_BEST, CHROMOSOME_SIZE, size;
 int** CROSSOVER_OFFSPRING_STORAGE_PLACE, ** CROSSOVER_PARENT_STORAGE_PLACE;
 int* MUTATED_OFFSPRING_STORAGE_PLACE, * MUTATE_PARENT_STORAGE_PLACE, * chromosome;
 
@@ -171,7 +171,7 @@ void update_LOS_of_patients_GA(int d, int* chromosome) {
         los = patients[gene_p_id].length_of_stay;
         if (admit_day != -1) { // if true - means the patient has been admitted.
             days_passed = d - admit_day;
-            if (days_passed == los ) {
+            if (days_passed == los) {
                 room[r_id].num_patients_allocated--;
                 if (!room[r_id].occupants_cap && !room[r_id].num_patients_allocated) {
                     if (g == A)
@@ -215,45 +215,45 @@ OTs* admitFromPQ_GA(PriorityQueue* pq, int d, OTs** ot_data_arr, OTs* current_ot
 
             while (current_ot_index < num_ots &&
                 (current_ot->time_left[d] == 0 || current_ot->time_left[d] < s_duration)) {
-                    current_ot_index++;
+                current_ot_index++;
                 if (current_ot_index < num_ots) {
                     current_ot = ot_data_arr[current_ot_index];
                 }
             }
 
             // If no valid OT was found, set a flag
-                if (current_ot_index == num_ots) {
-                    flag = 1;
+            if (current_ot_index == num_ots) {
+                flag = 1;
                 current_ot_index--; // Ensures index stays in range for later use
-                }
             }
+        }
 
 
-            if (flag) {
+        if (flag) {
+            pushback_Mand_Opt_PQ(vector, node);
+            continue;
+        }
+        else {
+            r_id = patients[p_id].gen ? findSuitableRoom(p_id, v_B) : findSuitableRoom(p_id, v_A);
+            if (r_id == -1) {
                 pushback_Mand_Opt_PQ(vector, node);
                 continue;
             }
             else {
-                r_id = patients[p_id].gen ? findSuitableRoom(p_id, v_B) : findSuitableRoom(p_id, v_A);
-                if (r_id == -1) {
+                if (surgeon[patients[p_id].surgeon_id].time_left[d] >= patients[p_id].surgery_duration) {
+                    patients[p_id].assigned_room_no = r_id;
+                    patients[p_id].assigned_ot = current_ot->id;
+                    room[r_id].num_patients_allocated++;
+                    current_ot->time_left[d] -= s_duration;
+                    patients[p_id].admission_day = d;
+                    surgeon[patients[p_id].surgeon_id].time_left[d] -= patients[p_id].surgery_duration;
+                }
+                else
                     pushback_Mand_Opt_PQ(vector, node);
-                    continue;
-                }
-                else {
-                    if (surgeon[patients[p_id].surgeon_id].time_left[d] >= patients[p_id].surgery_duration) {
-                        patients[p_id].assigned_room_no = r_id;
-                        patients[p_id].assigned_ot = current_ot->id;
-                        room[r_id].num_patients_allocated++;
-                        current_ot->time_left[d] -= s_duration;
-                        patients[p_id].admission_day = d;
-                        surgeon[patients[p_id].surgeon_id].time_left[d] -= patients[p_id].surgery_duration;
-                    }
-                    else
-                        pushback_Mand_Opt_PQ(vector, node);
-                }
             }
         }
-    
+    }
+
 
     for (int i = 0; i < vector->size; i++) {
         insertNodeInPQ(pq, *(vector->data[i]));
@@ -298,16 +298,16 @@ void reset_values() {
 
     //surgeon_structure
     for (int i = 0; i < num_surgeons; i++) {
-		for (int j = 0; j < days; j++) {
-			surgeon[i].time_left[j] = surgeon[i].max_surgery_time[j];
-		}
+        for (int j = 0; j < days; j++) {
+            surgeon[i].time_left[j] = surgeon[i].max_surgery_time[j];
+        }
 
-	}
+    }
 
-	//OT_structure
+    //OT_structure
     for (int i = 0; i < num_ots; i++) {
         for (int j = 0; j < days; j++) {
-			ot[i].time_left[j] = ot[i].max_ot_time[j];
+            ot[i].time_left[j] = ot[i].max_ot_time[j];
         }
     }
 
@@ -492,7 +492,7 @@ int admitPatientsGA(int** room_gender_map, PriorityQueue* pq, int* chromosome) {
                 continue;
             }
             else {
-                   if ((patients[p_id].surgery_due_day < day && patients[p_id].admission_day == -1) && unscheduled_mandatory_patients[p_id] == 0) {
+                if ((patients[p_id].surgery_due_day < day && patients[p_id].admission_day == -1) && unscheduled_mandatory_patients[p_id] == 0) {
                     ++unscheduled_mandatory;
                     unscheduled_mandatory_patients[p_id] = 1;
                     continue;
@@ -567,7 +567,7 @@ int admitPatientsGA(int** room_gender_map, PriorityQueue* pq, int* chromosome) {
             printf("%d\t", i);
         }
     }*/
-   // admit_optional_patients(&room_gender_map, ot_data_arr);
+    // admit_optional_patients(&room_gender_map, ot_data_arr);
     free(unscheduled_mandatory_patients);
     free(v_A);
     free(v_B);
@@ -575,11 +575,11 @@ int admitPatientsGA(int** room_gender_map, PriorityQueue* pq, int* chromosome) {
     return unscheduled_mandatory;
 }
 
-void admit_optional_patients(int** room_gender_map, OTs ** ot_data_arr) {
+void admit_optional_patients(int** room_gender_map, OTs** ot_data_arr) {
     int p_id, r_id, day, assigned_ot, flag, j, i;
     OTs* current_ot;
-    
-        for (day = 0; day < days; day++) {
+
+    for (day = 0; day < days; day++) {
         current_ot = ot_data_arr[0];
 
         for (int i = 0; i < optional_count; i++) {
@@ -591,50 +591,50 @@ void admit_optional_patients(int** room_gender_map, OTs ** ot_data_arr) {
                 /*if (patients[p_id].surgery_due_day < day && patients[p_id].admission_day == -1) {
                     continue;
                 }*/
-               // else {
-                    if (patients[p_id].surgery_release_day <= day) {
-                        // check if the OT is available
-                        if (current_ot->time_left[day] < patients[p_id].surgery_duration) {
-                            for (j = 0; j < num_ots || assigned_ot == -1; j++) {
-                                if (ot_data_arr[j]->time_left[day] >= patients[p_id].surgery_duration) {
-                                    assigned_ot = ot_data_arr[j]->id;
-                                    break;
-                                }
+                // else {
+                if (patients[p_id].surgery_release_day <= day) {
+                    // check if the OT is available
+                    if (current_ot->time_left[day] < patients[p_id].surgery_duration) {
+                        for (j = 0; j < num_ots || assigned_ot == -1; j++) {
+                            if (ot_data_arr[j]->time_left[day] >= patients[p_id].surgery_duration) {
+                                assigned_ot = ot_data_arr[j]->id;
+                                break;
                             }
-                            if (assigned_ot != -1) {
-                                if (j < num_ots) {
-                                    current_ot_index = j;
-                                    current_ot = ot_data_arr[current_ot_index];
-                                    assigned_ot = current_ot->id;
-                                }
-                                else continue;
-                                //ot_data_arr[current_ot_index]->time_left[day] -= patients[p_id].surgery_duration;
+                        }
+                        if (assigned_ot != -1) {
+                            if (j < num_ots) {
+                                current_ot_index = j;
+                                current_ot = ot_data_arr[current_ot_index];
+                                assigned_ot = current_ot->id;
                             }
-                            else {
-                                // if true - it means no ot could be assigned to this patient - put him in PQ
-                                //insertNodeInPQ(pq, makeHeapNode(p_id, 1, patients[p_id].surgery_due_day, 0, patients[p_id].length_of_stay));
-                                continue;
-                            }
+                            else continue;
+                            //ot_data_arr[current_ot_index]->time_left[day] -= patients[p_id].surgery_duration;
                         }
                         else {
-                            assigned_ot = current_ot->id;
+                            // if true - it means no ot could be assigned to this patient - put him in PQ
+                            //insertNodeInPQ(pq, makeHeapNode(p_id, 1, patients[p_id].surgery_due_day, 0, patients[p_id].length_of_stay));
+                            continue;
                         }
-
-                        // if the control comes here - that means surgeon and OT are available and only room remains
-                        // look for a suitable roo
-                        r_id = (patients[p_id].gen) ? findSuitableRoom(p_id, v_B) : findSuitableRoom(p_id, v_A);
-                        if (r_id != -1 && surgeon[patients[p_id].surgeon_id].time_left[day] >= patients[p_id].surgery_duration) {
-                            room[r_id].num_patients_allocated++;
-                            patients[p_id].admission_day = day;
-                            patients[p_id].assigned_ot = assigned_ot;
-                            patients[p_id].assigned_room_no = r_id;
-                            patients[p_id].is_admitted = 1;
-                            surgeon[patients[p_id].surgeon_id].time_left[day] -= patients[p_id].surgery_duration;
-                            ot[assigned_ot].time_left[day] -= patients[p_id].surgery_duration;
-                        }
-                        else continue;
                     }
+                    else {
+                        assigned_ot = current_ot->id;
+                    }
+
+                    // if the control comes here - that means surgeon and OT are available and only room remains
+                    // look for a suitable roo
+                    r_id = (patients[p_id].gen) ? findSuitableRoom(p_id, v_B) : findSuitableRoom(p_id, v_A);
+                    if (r_id != -1 && surgeon[patients[p_id].surgeon_id].time_left[day] >= patients[p_id].surgery_duration) {
+                        room[r_id].num_patients_allocated++;
+                        patients[p_id].admission_day = day;
+                        patients[p_id].assigned_ot = assigned_ot;
+                        patients[p_id].assigned_room_no = r_id;
+                        patients[p_id].is_admitted = 1;
+                        surgeon[patients[p_id].surgeon_id].time_left[day] -= patients[p_id].surgery_duration;
+                        ot[assigned_ot].time_left[day] -= patients[p_id].surgery_duration;
+                    }
+                    else continue;
                 }
+            }
             //}
         }
     }
@@ -651,7 +651,7 @@ void admit_optional_patients(int** room_gender_map, OTs ** ot_data_arr) {
 
 //-------------------------------------------------------BELOW: FUNCTION DEFINITIONS FOR GA-----------------------------------------------------------
 
-void applyGeneticAlgorithm(PriorityQueue * pq);
+void applyGeneticAlgorithm(PriorityQueue* pq);
 int evaluateFitnessScore(int* chromosome, PriorityQueue* pq);
 void orderCrossover(void);
 void swapMutation(void);
@@ -669,34 +669,34 @@ void printPopulation(void);
 
 //-------------------------------------------------------ABOVE: FUNCTION DEFINITIONS FOR GA-----------------------------------------------------------
 
-void applyGeneticAlgorithm(PriorityQueue * pq)
+void applyGeneticAlgorithm(PriorityQueue* pq)
 {
     int i, j, best_fitness, g_best;
     unsigned int same_fitness_iter;
-	float p_c = 0.85; // try with 0.6, 0.7, 0.8, 0.9
+    float p_c = 0.85; // try with 0.6, 0.7, 0.8, 0.9
     generatePopulation();
     for (i = 0; i < POPULATION_SIZE; ++i) {
         reset_values();
         POPULATION[i][CHROMOSOME_SIZE] = evaluateFitnessScore(POPULATION[i], pq);
     }
-	//printf("%d\n", POPULATION[0]);
+    //printf("%d\n", POPULATION[0]);
     //memcpy(G_BEST, POPULATION[0], (CHROMOSOME_SIZE + 1) * sizeof(int));
-	for (int i = 0; i < CHROMOSOME_SIZE; i++) {
-		G_BEST[i] = POPULATION[0][i];
-	}
+    for (int i = 0; i < CHROMOSOME_SIZE; i++) {
+        G_BEST[i] = POPULATION[0][i];
+    }
     g_best = G_BEST[CHROMOSOME_SIZE];
     //printPopulation();
 
     //-------------------------------------------------------START ITERATION-----------------------------------------------------------------
 
-    for (i = 0; i <= NUM_ITER ; ++i) {
+    for (i = 0; i <= NUM_ITER; ++i) {
         if ((rand() / (float)RAND_MAX) <= p_c) {
             //crossoverTournamentSelection();
             crossoverTournamentSelection_temp();
             //crossoverTournamentSelection();
             orderCrossover();
-			//printf("\nCrossover Offsprings: ");
-            
+            //printf("\nCrossover Offsprings: ");
+
             // calculate the fitness of the 2 new offsprings
             for (j = 0; j < 2; ++j)
                 CROSSOVER_OFFSPRING_STORAGE_PLACE[j][CHROMOSOME_SIZE] = evaluateFitnessScore(CROSSOVER_OFFSPRING_STORAGE_PLACE[j], pq);
@@ -707,9 +707,9 @@ void applyGeneticAlgorithm(PriorityQueue * pq)
         }
         else {
             mutationTournamentSelection_temp();
-			/*printf("\nMutation Parent: ");
+            /*printf("\nMutation Parent: ");
             for (int i = 0; i < CHROMOSOME_SIZE; i++) {
-				printf("%d\t", MUTATE_PARENT_STORAGE_PLACE[i]);
+                printf("%d\t", MUTATE_PARENT_STORAGE_PLACE[i]);
             }*/
             swapMutation();
             // calculate the fitness of the new offspring
@@ -735,16 +735,16 @@ void applyGeneticAlgorithm(PriorityQueue * pq)
 int evaluateFitnessScore(int* chromosome, PriorityQueue* pq)
 {   // fitness score is the number of mandatory patients who were admitted in the scheduling period.
     // The best fitness score is CHROMOSOME_SIZE
-    int unscheduled_mandatory = 0 , total_unscheduled_mandatory = 0;
+    int unscheduled_mandatory = 0, total_unscheduled_mandatory = 0;
     reset_values();
     unscheduled_mandatory = admitPatientsGA(&room_gender_map, pq, chromosome);
-    total_unscheduled_mandatory = unscheduled_mandatory ;
+    total_unscheduled_mandatory = unscheduled_mandatory;
     reset_values();
     //empty_pq(pq);
 
 
     // FITNESS = MANDATORY PATIENTS WHO WERE ADMITTED DURING THE SCHEDULING PERIOD
-    return (mandatory_count - total_unscheduled_mandatory);
+    return (size - total_unscheduled_mandatory);
 }
 
 void orderCrossover(void) {
@@ -827,7 +827,7 @@ void orderCrossover(void) {
     //free(visited2);
 }
 
-   
+
 
 void swapMutation(void)
 {   // take the offspring from MUTATED_OFFSPRING_STORAGE_PLACE and mutate it using SWAP MUTATION method
@@ -999,33 +999,33 @@ void generatePopulation(void)
 
 void crossoverTournamentSelection_temp(void)
 {   // select 2 parents using Tournament Selection method
-    int i, best_fitness , best_fitness_idx1 = 0, best_fitness_idx2 = 0;
+    int i, best_fitness, best_fitness_idx1 = 0, best_fitness_idx2 = 0;
 
     // select first parent
-	best_fitness = POPULATION[0][CHROMOSOME_SIZE];
+    best_fitness = POPULATION[0][CHROMOSOME_SIZE];
     for (i = 1; i < POPULATION_SIZE; ++i) {
-		if (POPULATION[i][CHROMOSOME_SIZE] > best_fitness) {
-			best_fitness = POPULATION[i][CHROMOSOME_SIZE];
-			best_fitness_idx1 = i;
-		}
+        if (POPULATION[i][CHROMOSOME_SIZE] > best_fitness) {
+            best_fitness = POPULATION[i][CHROMOSOME_SIZE];
+            best_fitness_idx1 = i;
+        }
     }
 
-	// select second parent
-	best_fitness = POPULATION[0][CHROMOSOME_SIZE];
-	for (i = 1; i < POPULATION_SIZE; ++i) {
-		if (POPULATION[i][CHROMOSOME_SIZE] > best_fitness && i != best_fitness_idx1) {
-			best_fitness = POPULATION[i][CHROMOSOME_SIZE];
-			best_fitness_idx2 = i;
-		}
-	}
-    
+    // select second parent
+    best_fitness = POPULATION[0][CHROMOSOME_SIZE];
+    for (i = 1; i < POPULATION_SIZE; ++i) {
+        if (POPULATION[i][CHROMOSOME_SIZE] > best_fitness && i != best_fitness_idx1) {
+            best_fitness = POPULATION[i][CHROMOSOME_SIZE];
+            best_fitness_idx2 = i;
+        }
+    }
+
     memcpy(CROSSOVER_PARENT_STORAGE_PLACE[0], POPULATION[best_fitness_idx1], (CHROMOSOME_SIZE + 1) * sizeof(int));
     memcpy(CROSSOVER_PARENT_STORAGE_PLACE[1], POPULATION[best_fitness_idx2], (CHROMOSOME_SIZE + 1) * sizeof(int));
 }
 
 void mutationTournamentSelection_temp(void)
 {   // select 2 parents using Tournament Selection method
-    int r1 = 0 , r2 = 0, r3 = 0, f1 = 0, f2 = 0, f3 = 0;
+    int r1 = 0, r2 = 0, r3 = 0, f1 = 0, f2 = 0, f3 = 0;
     int best_fitness = 0, best_fitness_idx = 0, i;
 
     best_fitness = POPULATION[0][CHROMOSOME_SIZE];
@@ -1118,7 +1118,7 @@ void initDataStructures(void)
     }
 
     // Uncomment this if required
-    
+
     POPULATION = (int**)calloc(POPULATION_SIZE, sizeof(int*));
     ASSERT(POPULATION, "Dynamic Memory Allocation Error for POPULATION");
 
@@ -1129,7 +1129,7 @@ void initDataStructures(void)
         // Set last column to -1 if needed
         POPULATION[i][CHROMOSOME_SIZE] = -1;
     }
-    
+
 }
 
 
@@ -1167,58 +1167,59 @@ void printPopulation(void)
 
 //---------------------------------------------------------ABOVE: GENETIC ALGORITHM-------------------------------------------------------------
 
-//int main(void) {
-//    parse_json("data/instances/i27.json");
-//    PriorityQueue* pq;
-//    srand(0);
-//    pq = (PriorityQueue*)calloc(1, sizeof(PriorityQueue));
-//    if (!pq)
-//        ASSERT(0, "Dynamic Memory Allocation Error for PQ");
-//
-//    CHROMOSOME_SIZE = mandatory_count ;
-//
-//	initDataStructures();
-//    initialize_room_gender_map(&room_gender_map);
-//    initPQ(pq, 20); // InitalCapacity = 20. It'll resizePQ itself if we try to insert more HeapNodes in it.
-//    populate_room_gender_map(&room_gender_map);
-//    print_map(&room_gender_map);
-//    //initializePopulation();
-//    generatePopulation();
-//	//printPopulation();
-//    reset_values();
-//    applyGeneticAlgorithm(pq);
-//    printf("Mandatory Patients: %d\n", mandatory_count);
-//    printf("Best Fitness Score: %d\n", G_BEST[CHROMOSOME_SIZE]);
-//	reset_values();
-//    admitPatientsGA(&room_gender_map, pq, G_BEST);
-//    
-//    //print_rooms();   
-////    freeDataStructures();   
-//    create_dm_nurses_availability();
-//    sorting_nurse_id_max_load();
-//    create_3d_array();
-//    initialize_rooms_req(num_rooms);
-//    create_rooms_req();
-//    /*printf("\nBest Chromosome:");
-//	for (int i = 0; i <= CHROMOSOME_SIZE; i++)
-//		printf("%d\t", G_BEST[i]);*/
-//	printf("Mandatory Patients: %d\n", mandatory_count);
-//	printf("Best Fitness Score: %d\n", G_BEST[CHROMOSOME_SIZE]);
-//    nurse_assignments();
-//    create_json_file(patients, num_patients, nurses, num_nurses, num_rooms, "i27", "D:/major_code/build/output");
-//    
-////
-////    // Free allocated memory
-////    // free_patients_sorted_array(sorted_mandatory_patients);
-////    // free_patients_sorted_array(sorted_optional_patients);
-//    free_occupants();
-//    //free_patients();
-//    free_surgeons();
-//    free_ots();
-//    free_rooms();
-//    //free_nurses();
-//    //freeDataStructures();
-//    free(weights);
-//
-//    return 0;
-//}
+int main(void) {
+    parse_json("data/instances/i27.json");
+    PriorityQueue* pq;
+    srand(0);
+    pq = (PriorityQueue*)calloc(1, sizeof(PriorityQueue));
+    if (!pq)
+        ASSERT(0, "Dynamic Memory Allocation Error for PQ");
+	size = mandatory_count + optional_count;
+
+    CHROMOSOME_SIZE = size;
+
+    initDataStructures();
+    initialize_room_gender_map(&room_gender_map);
+    initPQ(pq, 20); // InitalCapacity = 20. It'll resizePQ itself if we try to insert more HeapNodes in it.
+    populate_room_gender_map(&room_gender_map);
+    print_map(&room_gender_map);
+    //initializePopulation();
+    generatePopulation();
+    //printPopulation();
+    reset_values();
+    applyGeneticAlgorithm(pq);
+    printf("Mandatory Patients: %d\n", size);
+    printf("Best Fitness Score: %d\n", G_BEST[CHROMOSOME_SIZE]);
+    reset_values();
+    admitPatientsGA(&room_gender_map, pq, G_BEST);
+
+    //print_rooms();   
+//    freeDataStructures();   
+    create_dm_nurses_availability();
+    sorting_nurse_id_max_load();
+    create_3d_array();
+    initialize_rooms_req(num_rooms);
+    create_rooms_req();
+    /*printf("\nBest Chromosome:");
+    for (int i = 0; i <= CHROMOSOME_SIZE; i++)
+        printf("%d\t", G_BEST[i]);*/
+    printf("Mandatory Patients: %d\n", size);
+    printf("Best Fitness Score: %d\n", G_BEST[CHROMOSOME_SIZE]);
+    nurse_assignments();
+    create_json_file(patients, num_patients, nurses, num_nurses, num_rooms, "i27", "D:/major_code/build/output");
+
+    //
+    //    // Free allocated memory
+    //    // free_patients_sorted_array(sorted_mandatory_patients);
+    //    // free_patients_sorted_array(sorted_optional_patients);
+    free_occupants();
+    //free_patients();
+    free_surgeons();
+    free_ots();
+    free_rooms();
+    //free_nurses();
+    //freeDataStructures();
+    free(weights);
+
+    return 0;
+}

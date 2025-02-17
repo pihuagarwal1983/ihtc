@@ -19,7 +19,11 @@
     } while (0)
 
 // Enum types
-typedef enum { A, B } gender;
+typedef enum {
+    UNKNOWN = -1,  // Default value for unspecified gender
+    A = 0,
+    B = 1
+} gender;
 typedef enum { early, late, night } shift_types;
 typedef enum { optional, mandatory } PatientType;
 
