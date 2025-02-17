@@ -1,5 +1,13 @@
 ﻿#include <definition.h>
 
+#define ASSERT(condition, message) \
+    do { \
+        if (!(condition)) { \
+            fprintf(stderr, "Assertion failed: %s\nFile: %s, Line: %d\n", message, __FILE__, __LINE__); \
+            exit(EXIT_FAILURE); \
+        } \
+    } while (0)
+
 
 // Global declarations of variables
 int days;                      // Total number of days in the schedule
@@ -1223,27 +1231,20 @@ void print_map(int** room_gender_map) {
 
 // Initialize the priority queue
 void heapifyUp(PriorityQueue* pq, int index) {
-   // printf("HeapifyUp - Starting at index: %d\n", index);
-    while (index > 0) {
-        int parent = (index - 1) / 2;
-        //printf("Comparing node at index %d with parent at index %d\n", index, parent);
-        if (compareNodesForPQ(pq->data[index], pq->data[parent]) > 0) {
-            // Swap child with parent
-          //  printf("Swapping node with parent: (%d, %d, %d, %d) <-> (%d, %d, %d, %d)\n",
-            //    pq->data[index].patient_id, pq->data[index].mandatory, pq->data[index].due_day, pq->data[index].delay,
-              //  pq->data[parent].patient_id, pq->data[parent].mandatory, pq->data[parent].due_day, pq->data[parent].delay);
-
-            HeapNode temp = pq->data[index];
-            pq->data[index] = pq->data[parent];
-            pq->data[parent] = temp;
-            index = parent;
-        }
-        else {
-            //printf("No swap needed\n");
-            break;
-        }
-    }
-    //printf("HeapifyUp - Final index: %d\n", index);
+   // runs the max/min heapify from leaf to the root, i.e. O (log n) time
+   while (index > 0) {
+      int parent = (index - 1) / 2;
+      if (compareNodesForPQ(pq->data[index], pq->data[parent]) > 0) {
+         // Swap child with parent
+         HeapNode temp = pq->data[index];
+         pq->data[index] = pq->data[parent];
+         pq->data[parent] = temp;
+         index = parent;
+      }
+      else {
+          break;
+      }
+   }
 }
 
 void heapifyDown(PriorityQueue* pq, int index) {
@@ -1687,6 +1688,7 @@ int findSuitableRoom(int p_id, RoomVector* vector) {
 
     return -1; // No suitable room found
 }
+
 
 void update_LOS_of_patients(int d) {
    /* Check if any patient's length_of_stay is over and if yes then remove that patient from -
@@ -2543,6 +2545,7 @@ void sorting_nurse_id_max_load() {
 void allocate_dm_nurses_availability() {
    dm_nurses_availability = (Nurses***)calloc(days * 3, sizeof(Nurses**));
    max_load_updated = (int**)calloc(num_nurses, (sizeof(int*)));
+
    if (!dm_nurses_availability) {
       perror("Failed to allocate memory for main array");
       exit(EXIT_FAILURE);
@@ -2657,11 +2660,7 @@ void initialize_rooms_req(int num_rooms) {
       if (rooms_requirement[i] == NULL) {
          perror("Failed to allocate memory for a row");
          exit(EXIT_FAILURE);
-      }
-      for (int j = 0; j < 3 * days; j++) {
-         rooms_requirement[i][j].load_sum = 0;
-         rooms_requirement[i][j].max_skill_req = 0;
-      }
+      }   
    }
 }
 
@@ -2727,6 +2726,43 @@ void cleanup_rooms_req(int num_rooms) {
    }
    free(rooms_requirement); // Free the array of rows
 }
+
+//-----------------------------------------------NURSE ASSIGNMENT : START--------------------------------------------------
+
+/*
+int*** days_room_shift_nurse_info_3d_arr;
+void createNurseAssignment3DArray(void) {
+    int i, j;
+
+    days_room_shift_nurse_info_3d_arr = (int***)calloc(days, sizeof(int**));
+    for (i = 0; i < days; ++i)
+        days_room_shift_nurse_info_3d_arr[i] = (int**)calloc(num_rooms, sizeof(int*));
+    for (i=0; i<days; ++i)
+        for (j=0; j<num_rooms; ++j)
+            days_room_shift_nurse_info_3d_arr[i][j] = (int*)calloc(3, sizeof(int)); 
+            // Since there are 3 shifts -> the length of the array is 3
+}
+
+void freeNurseAssignment3DArray(void) {
+    int i, j;
+
+    for (i = 0; i < days; ++i)
+        for (j = 0; j < num_rooms; ++j)
+            free(days_room_shift_nurse_info_3d_arr[i][j]);
+    for (i = 0; i < days; ++i)
+        free(days_room_shift_nurse_info_3d_arr[i]);
+    free(days_room_shift_nurse_info_3d_arr);
+
+}
+*/
+//void initializeNurseAssignment3DArray(void) {
+    /*
+    days_room_shift_nurse_info_3d_arr is a 3D array. The dimentions are as follows - 
+    X - axis : #days
+    Y - axis : #rooms
+    Z - axis : #shifts
+    */
+//}
 
 void nurse_assignments() {
     for (int i = 0; i < days; i++) {
@@ -2815,6 +2851,8 @@ void nurse_assignments() {
         }
     }
 }
+
+//-----------------------------------------------NURSE ASSIGNMENT : END--------------------------------------------------
 
 void print_max_loadd_updated() {
    for (int i = 0; i < num_nurses; i++) {

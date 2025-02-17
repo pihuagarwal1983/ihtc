@@ -215,16 +215,17 @@ OTs* admitFromPQ_GA(PriorityQueue* pq, int d, OTs** ot_data_arr, OTs* current_ot
 
             while (current_ot_index < num_ots &&
                 (current_ot->time_left[d] == 0 || current_ot->time_left[d] < s_duration)) {
-                current_ot_index++;
+                    current_ot_index++;
                 if (current_ot_index < num_ots) {
                     current_ot = ot_data_arr[current_ot_index];
                 }
             }
 
             // If no valid OT was found, set a flag
-            if (current_ot_index == num_ots) {
-                flag = 1;
+                if (current_ot_index == num_ots) {
+                    flag = 1;
                 current_ot_index--; // Ensures index stays in range for later use
+                }
             }
 
 
@@ -449,16 +450,16 @@ int compare_release_Day(const void* a, const void* b) {
 //}
 
 
-int admitPatientsGA(int** room_gender_map, PriorityQueue* pq, int* chromosome) {
-    int i, j, p_id, s_id, r_id, unscheduled_mandatory = 0, day, p_counter;
-    int max = 0;
+int admitPatientsGA(int** room_gender_map, PriorityQueue* pq, int * chromosome) {
+	int i, j, p_id, s_id, r_id, admitted_mandatory_count = 0, day, p_counter;
+	int unscheduled_mandatory = 0, assigned_ot, flag, max = 0;
     OTs** ot_data_arr, * current_ot;
 
-    v_A = (RoomVector*)calloc(1, sizeof(RoomVector));
-    v_B = (RoomVector*)calloc(1, sizeof(RoomVector));
-    v_empty = (RoomVector*)calloc(1, sizeof(RoomVector));
+	v_A = (RoomVector*)calloc(1, sizeof(RoomVector));
+	v_B = (RoomVector*)calloc(1, sizeof(RoomVector));
+	v_empty = (RoomVector*)calloc(1, sizeof(RoomVector));
 
-    make_3_vectors(room_gender_map);
+	make_3_vectors(room_gender_map);
 
     ot_data_arr = (OTs**)calloc(num_ots, sizeof(OTs*));
     if (ot_data_arr == NULL) {
@@ -469,24 +470,20 @@ int admitPatientsGA(int** room_gender_map, PriorityQueue* pq, int* chromosome) {
         ot_data_arr[i] = ot + i;
 
     for (int i = 0; i < CHROMOSOME_SIZE; i++)
-        if (max < chromosome[i])
-            max = chromosome[i];
-
+		if (max < chromosome[i])
+			max = chromosome[i];
+       
     int* unscheduled_mandatory_patients = (int*)calloc(max + 1, sizeof(int));
 
     for (day = 0; day < days; day++) {
         if (day)
-            update_LOS_of_patients_GA(day, chromosome);
-        current_ot_index = 0;
-        sort_ot_data_arr(ot_data_arr, day);
-        current_ot = ot_data_arr[current_ot_index];
-        //if (pq->current_size > 0)
-           //current_ot = admitFromPQ_GA(pq, day, ot_data_arr, current_ot, current_ot_index, 0);
+        update_LOS_of_patients_GA(day, chromosome);
         current_ot_index = 0;
         sort_ot_data_arr(ot_data_arr, day);
         current_ot = ot_data_arr[current_ot_index];
         for (p_counter = 0; p_counter < CHROMOSOME_SIZE; p_counter++) {
             p_id = chromosome[p_counter];
+
             if (patients[p_id].surgery_release_day > day || patients[p_id].admission_day != -1) {
                 continue;
             }
@@ -499,26 +496,41 @@ int admitPatientsGA(int** room_gender_map, PriorityQueue* pq, int* chromosome) {
                 else {
                     if (patients[p_id].surgery_release_day >= day && patients[p_id].surgery_due_day >= day) {
                         s_id = patients[p_id].surgeon_id;
+                        // check if the surgeon is available
                         if (surgeon[s_id].time_left[day] < patients[p_id].surgery_duration) {
+                            //insertNodeInPQ(pq, makeHeapNode(p_id, 1, patients[p_id].surgery_due_day, 0, patients[p_id].length_of_stay));
                             continue;
                         }
                         int assigned_ot = -1; // Initialize assigned_ot here
                         if (current_ot->time_left[day] < patients[p_id].surgery_duration) {
+                            for (j = 0; j < num_ots || assigned_ot == -1; j++) {
                             for (j = 0; j < num_ots && assigned_ot == -1; j++) {
                                 if (ot_data_arr[j]->time_left[day] >= patients[p_id].surgery_duration) {
                                     assigned_ot = ot_data_arr[j]->id;
-                                    current_ot_index = j;
-                                    current_ot = ot_data_arr[current_ot_index];
+                                    break;
                                 }
                             }
-                            if (assigned_ot == -1) {
-                                continue;
+                            if (assigned_ot != -1) {
+                                if (j < num_ots) {
+                                    current_ot_index = j;
+                                    current_ot = ot_data_arr[current_ot_index];
+                                    assigned_ot = current_ot->id;
+                                }
+                                else continue;
+                                //ot_data_arr[current_ot_index]->time_left[day] -= patients[p_id].surgery_duration;
+                            }
+                            else {
+                            	// if true - it means no ot could be assigned to this patient - put him in PQ
+                            	//insertNodeInPQ(pq, makeHeapNode(p_id, 1, patients[p_id].surgery_due_day, 0, patients[p_id].length_of_stay));
+                            	continue;
                             }
                         }
                         else {
                             assigned_ot = current_ot->id;
                         }
 
+                        // if the control comes here - that means surgeon and OT are available and only room remains
+                        // look for a suitable roo
                         r_id = (patients[p_id].gen) ? findSuitableRoom(p_id, v_B) : findSuitableRoom(p_id, v_A);
                         if (r_id != -1 && surgeon[s_id].time_left[day] >= patients[p_id].surgery_duration) {
                             room[r_id].num_patients_allocated++;
@@ -528,16 +540,17 @@ int admitPatientsGA(int** room_gender_map, PriorityQueue* pq, int* chromosome) {
                             patients[p_id].is_admitted = 1;
                             surgeon[s_id].time_left[day] -= patients[p_id].surgery_duration;
                             ot[assigned_ot].time_left[day] -= patients[p_id].surgery_duration;
+
                         }
                         else {
                             continue;
-                        }
                     }
                 }
             }
+        }
             if ((day >= patients[p_id].surgery_release_day ) && (patients[p_id].admission_day == -1)) {
 				insertNodeInPQ(pq, makeHeapNode(p_id, 1, patients[p_id].surgery_due_day, 0, patients[p_id].length_of_stay));
-            }
+    }
         }
     }
     for (int i = 0; i < max; i++) {
@@ -558,9 +571,9 @@ int admitPatientsGA(int** room_gender_map, PriorityQueue* pq, int* chromosome) {
         }
     }*/
     free(unscheduled_mandatory_patients);
-    free(v_A);
-    free(v_B);
-    free(v_empty);
+	free(v_A);
+	free(v_B);
+	free(v_empty);
     free(ot_data_arr);
     return unscheduled_mandatory;
 }
@@ -648,7 +661,9 @@ void swapMutation(void);
 void generateNewChromosome(int chromo_num);
 void generatePopulation(void);
 void crossoverTournamentSelection(void);
+void crossoverTournamentSelection_temp(void);
 void mutationTournamentSelection(void);
+void mutationTournamentSelection_temp(void);
 void crossoverElitism(void);
 void mutationElitism(void);
 void initDataStructures(void);
@@ -661,7 +676,7 @@ void applyGeneticAlgorithm(PriorityQueue * pq)
 {
     int i, j, best_fitness, g_best;
     unsigned int same_fitness_iter;
-    float p_c = 0.8;
+	float p_c = 0.8; // try with 0.6, 0.7, 0.8, 0.9
     generatePopulation();
     for (i = 0; i < POPULATION_SIZE; ++i) {
         reset_values();
@@ -679,6 +694,8 @@ void applyGeneticAlgorithm(PriorityQueue * pq)
 
     for (i = 0; i <= NUM_ITER ; ++i) {
         if ((rand() / (float)RAND_MAX) <= p_c) {
+            //crossoverTournamentSelection();
+            crossoverTournamentSelection_temp();
             crossoverTournamentSelection();
             orderCrossover();
 			//printf("\nCrossover Offsprings: ");
@@ -732,9 +749,6 @@ int evaluateFitnessScore(int* chromosome, PriorityQueue* pq)
     // FITNESS = MANDATORY PATIENTS WHO WERE ADMITTED DURING THE SCHEDULING PERIOD
     return (mandatory_count - total_unscheduled_mandatory);
 }
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdbool.h>
 
 void orderCrossover(void) {
     int r1, r2, i, k, m;
@@ -887,103 +901,162 @@ void crossoverTournamentSelection(void)
         r13 = rand() % (POPULATION_SIZE);
     } while (r11 == r12 || r12 == r13 || r11 == r13);
 
-    // select the chromosome1 with the best fitness
-    f11 = POPULATION[r11][CHROMOSOME_SIZE];
-    f12 = POPULATION[r12][CHROMOSOME_SIZE];
-    f13 = POPULATION[r13][CHROMOSOME_SIZE];
-    best_fitness = f11;
-    best_fitness_idx1 = r11;
+//void crossoverTournamentSelection(void)
+//{   // select 2 parents using Tournament Selection method
+//    int r11, r12, r13, r21, r22, r23, f11, f12, f13, f21, f22, f23;
+//    int best_fitness, best_fitness_idx1, best_fitness_idx2;
+//
+//    // select first parent
+//    do {
+//        r11 = rand() % (POPULATION_SIZE);
+//        r12 = rand() % (POPULATION_SIZE);
+//        r13 = rand() % (POPULATION_SIZE);
+//    } while (r11 == r12 || r12 == r13 || r11 == r13);
+//
+//    // select the chromosome1 with the best fitness
+//    f11 = POPULATION[r11][CHROMOSOME_SIZE];
+//    f12 = POPULATION[r12][CHROMOSOME_SIZE];
+//    f13 = POPULATION[r13][CHROMOSOME_SIZE];
+//    best_fitness = f11;
+//    best_fitness_idx1 = r11;
+//
+//    if (f12 > best_fitness) {
+//        if (f13 > f12) {
+//            best_fitness = f13;
+//            best_fitness_idx1 = r13;
+//        }
+//        else {
+//            best_fitness = f12;
+//            best_fitness_idx1 = r12;
+//        }
+//    }
+//    else
+//        if (f13 > best_fitness) {
+//            best_fitness = f13;
+//            best_fitness_idx1 = r13;
+//        }
+//
+//
+//    // select second parent
+//    do {
+//        r21 = rand() % (POPULATION_SIZE);
+//        r22 = rand() % (POPULATION_SIZE);
+//        r23 = rand() % (POPULATION_SIZE);
+//    } while (r21 == r22 || r22 == r23 || r21 == r23 ||
+//        r11 == r21 || r11 == r22 || r11 == r23 ||
+//        r12 == r21 || r12 == r22 || r12 == r23 ||
+//        r13 == r21 || r13 == r22 || r13 == r23);
+//
+//    // select the chromosome2 with the best fitness
+//    f21 = POPULATION[r21][CHROMOSOME_SIZE];
+//    f22 = POPULATION[r22][CHROMOSOME_SIZE];
+//    f23 = POPULATION[r23][CHROMOSOME_SIZE];
+//    best_fitness = f21;
+//    best_fitness_idx2 = r21;
+//
+//    if (f22 > best_fitness) {
+//        if (f23 > f22) {
+//            best_fitness = f23;
+//            best_fitness_idx2 = r23;
+//        }
+//        else {
+//            best_fitness = f22;
+//            best_fitness_idx2 = r22;
+//        }
+//    }
+//    else
+//        if (f23 > best_fitness) {
+//            best_fitness = f23;
+//            best_fitness_idx2 = r23;
+//        }
+//    memcpy(CROSSOVER_PARENT_STORAGE_PLACE[0], POPULATION[best_fitness_idx1], (CHROMOSOME_SIZE + 1) * sizeof(int));
+//    memcpy(CROSSOVER_PARENT_STORAGE_PLACE[1], POPULATION[best_fitness_idx2], (CHROMOSOME_SIZE + 1) * sizeof(int));
+//}
+//
+//void mutationTournamentSelection(void)
+//{   // select 2 parents using Tournament Selection method
+//    int r1, r2, r3, f1, f2, f3;
+//    int best_fitness, best_fitness_idx;
+//
+//    // select first parent
+//    do {
+//        r1 = rand() % (POPULATION_SIZE);
+//        r2 = rand() % (POPULATION_SIZE);
+//        r3 = rand() % (POPULATION_SIZE);
+//    } while (r1 == r2 || r2 == r3 || r1 == r3);
+//
+//    // select the chromosome1 with the best fitness
+//    f1 = POPULATION[r1][CHROMOSOME_SIZE];
+//    f2 = POPULATION[r2][CHROMOSOME_SIZE];
+//    f3 = POPULATION[r3][CHROMOSOME_SIZE];
+//    best_fitness = f1;
+//    best_fitness_idx = r1;
+//
+//    if (f2 > best_fitness) {
+//        if (f3 > f2) {
+//            best_fitness = f3;
+//            best_fitness_idx = r3;
+//        }
+//        else {
+//            best_fitness = f2;
+//            best_fitness_idx = r2;
+//        }
+//    }
+//    else
+//        if (f3 > best_fitness) {
+//            best_fitness = f3;
+//            best_fitness_idx = r3;
+//        }
+//
+//    memcpy(MUTATE_PARENT_STORAGE_PLACE, POPULATION[best_fitness_idx], (CHROMOSOME_SIZE + 1) * sizeof(int));
+//}
 
-    if (f12 > best_fitness) {
-        if (f13 > f12) {
-            best_fitness = f13;
-            best_fitness_idx1 = r13;
-        }
-        else {
-            best_fitness = f12;
-            best_fitness_idx1 = r12;
-        }
+void crossoverTournamentSelection_temp(void)
+{   // select 2 parents using Tournament Selection method
+    int i, best_fitness, best_fitness_idx1, best_fitness_idx2;
+
+    // select first parent
+	best_fitness = POPULATION[0][CHROMOSOME_SIZE];
+    for (i = 1; i < POPULATION_SIZE; ++i) {
+		if (POPULATION[i][CHROMOSOME_SIZE] > best_fitness) {
+			best_fitness = POPULATION[i][CHROMOSOME_SIZE];
+			best_fitness_idx1 = i;
+		}
     }
-    else
-        if (f13 > best_fitness) {
-            best_fitness = f13;
-            best_fitness_idx1 = r13;
-        }
 
-
-    // select second parent
-    do {
-        r21 = rand() % (POPULATION_SIZE);
-        r22 = rand() % (POPULATION_SIZE);
-        r23 = rand() % (POPULATION_SIZE);
-    } while (r21 == r22 || r22 == r23 || r21 == r23 ||
-        r11 == r21 || r11 == r22 || r11 == r23 ||
-        r12 == r21 || r12 == r22 || r12 == r23 ||
-        r13 == r21 || r13 == r22 || r13 == r23);
-
-    // select the chromosome2 with the best fitness
-    f21 = POPULATION[r21][CHROMOSOME_SIZE];
-    f22 = POPULATION[r22][CHROMOSOME_SIZE];
-    f23 = POPULATION[r23][CHROMOSOME_SIZE];
-    best_fitness = f21;
-    best_fitness_idx2 = r21;
-
-    if (f22 > best_fitness) {
-        if (f23 > f22) {
-            best_fitness = f23;
-            best_fitness_idx2 = r23;
-        }
-        else {
-            best_fitness = f22;
-            best_fitness_idx2 = r22;
-        }
-    }
-    else
-        if (f23 > best_fitness) {
-            best_fitness = f23;
-            best_fitness_idx2 = r23;
-        }
+	// select second parent
+	best_fitness = POPULATION[0][CHROMOSOME_SIZE];
+	for (i = 1; i < POPULATION_SIZE; ++i) {
+		if (POPULATION[i][CHROMOSOME_SIZE] > best_fitness && i != best_fitness_idx1) {
+			best_fitness = POPULATION[i][CHROMOSOME_SIZE];
+			best_fitness_idx2 = i;
+		}
+	}
+    
     memcpy(CROSSOVER_PARENT_STORAGE_PLACE[0], POPULATION[best_fitness_idx1], (CHROMOSOME_SIZE + 1) * sizeof(int));
     memcpy(CROSSOVER_PARENT_STORAGE_PLACE[1], POPULATION[best_fitness_idx2], (CHROMOSOME_SIZE + 1) * sizeof(int));
 }
 
-void mutationTournamentSelection(void)
+void mutationTournamentSelection_temp(void)
 {   // select 2 parents using Tournament Selection method
     int r1, r2, r3, f1, f2, f3;
     int best_fitness, best_fitness_idx;
 
-    // select first parent
-    do {
-        r1 = rand() % (POPULATION_SIZE);
-        r2 = rand() % (POPULATION_SIZE);
-        r3 = rand() % (POPULATION_SIZE);
-    } while (r1 == r2 || r2 == r3 || r1 == r3);
-
-    // select the chromosome1 with the best fitness
-    f1 = POPULATION[r1][CHROMOSOME_SIZE];
-    f2 = POPULATION[r2][CHROMOSOME_SIZE];
-    f3 = POPULATION[r3][CHROMOSOME_SIZE];
-    best_fitness = f1;
-    best_fitness_idx = r1;
-
-    if (f2 > best_fitness) {
-        if (f3 > f2) {
-            best_fitness = f3;
-            best_fitness_idx = r3;
+    best_fitness = POPULATION[0][CHROMOSOME_SIZE];
+    for (i = 1; i < POPULATION_SIZE; ++i) {
+        if (POPULATION[i][CHROMOSOME_SIZE] > best_fitness) {
+            best_fitness = POPULATION[i][CHROMOSOME_SIZE];
+            best_fitness_idx = i;
         }
-        else {
-            best_fitness = f2;
-            best_fitness_idx = r2;
-        }
-    }
     else
         if (f3 > best_fitness) {
             best_fitness = f3;
             best_fitness_idx = r3;
-        }
+    }
 
     memcpy(MUTATE_PARENT_STORAGE_PLACE, POPULATION[best_fitness_idx], (CHROMOSOME_SIZE + 1) * sizeof(int));
 }
+
 
 void crossoverElitism(void)
 {
@@ -1125,6 +1198,7 @@ int main(void) {
     //initializePopulation();
     generatePopulation();
 	//printPopulation();
+    reset_values();
     applyGeneticAlgorithm(pq);
 	reset_values();
     admitPatientsGA(&room_gender_map, pq, G_BEST);
@@ -1132,7 +1206,7 @@ int main(void) {
     printf("Best Fitness Score: %d\n", G_BEST[CHROMOSOME_SIZE]);
 	reset_values();
     admitPatientsGA(&room_gender_map, pq, G_BEST);
-    //print_rooms();
+    //print_rooms();   
 //    freeDataStructures();   
     create_dm_nurses_availability();
     sorting_nurse_id_max_load();
@@ -1157,6 +1231,7 @@ int main(void) {
     free_ots();
     free_rooms();
     //free_nurses();
+    freeDataStructures();
     free(weights);
 
     return 0;
