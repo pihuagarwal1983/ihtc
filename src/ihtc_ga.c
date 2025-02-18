@@ -46,7 +46,7 @@ typedef struct {
 } Mand_opt_PQ;
 extern RoomVector* v_A, * v_B, * v_empty;
 
-const int POPULATION_SIZE = 1000, NUM_ITER = 100000, CONVERGENCE_STOPPING_CRITERION = 100;
+const int POPULATION_SIZE = 10000, NUM_ITER = 100000, CONVERGENCE_STOPPING_CRITERION = 100;
 int** POPULATION, * G_BEST, CHROMOSOME_SIZE;
 int** CROSSOVER_OFFSPRING_STORAGE_PLACE, ** CROSSOVER_PARENT_STORAGE_PLACE;
 int* MUTATED_OFFSPRING_STORAGE_PLACE, * MUTATE_PARENT_STORAGE_PLACE, * chromosome;
@@ -561,12 +561,7 @@ int admitPatientsGA(int** room_gender_map, PriorityQueue* pq, int* chromosome) {
             unscheduled_mandatory_patients[i] = 1;
         }
     }
-    /*printf("\nunscheduled_mandatory: \n");
-    for (int i = 0; i < CHROMOSOME_SIZE; i++) {
-        if (unscheduled_mandatory_patients[i] == 1) {
-            printf("%d\t", i);
-        }
-    }*/
+    
    // admit_optional_patients(&room_gender_map, ot_data_arr);
     free(unscheduled_mandatory_patients);
     free(v_A);
@@ -806,19 +801,19 @@ void orderCrossover(void) {
 
         int gene1 = CROSSOVER_PARENT_STORAGE_PLACE[0][index];
         if (gene1 >= 0 && !visited1[gene1]) {
-            while (CROSSOVER_OFFSPRING_STORAGE_PLACE[0][k] != -1) {
+            while (CROSSOVER_OFFSPRING_STORAGE_PLACE[1][k] != -1) {
                 k = (k + 1) % CHROMOSOME_SIZE;
             }
-            CROSSOVER_OFFSPRING_STORAGE_PLACE[0][k] = gene1;
+            CROSSOVER_OFFSPRING_STORAGE_PLACE[1][k] = gene1;
             visited1[gene1] = true;
         }
 
         int gene2 = CROSSOVER_PARENT_STORAGE_PLACE[1][index];
         if (gene2 >= 0 && !visited2[gene2]) {
-            while (CROSSOVER_OFFSPRING_STORAGE_PLACE[1][m] != -1) {
+            while (CROSSOVER_OFFSPRING_STORAGE_PLACE[0][m] != -1) {
                 m = (m + 1) % CHROMOSOME_SIZE;
             }
-            CROSSOVER_OFFSPRING_STORAGE_PLACE[1][m] = gene2;
+            CROSSOVER_OFFSPRING_STORAGE_PLACE[0][m] = gene2;
             visited2[gene2] = true;
         }
     }
@@ -1168,7 +1163,7 @@ void printPopulation(void)
 //---------------------------------------------------------ABOVE: GENETIC ALGORITHM-------------------------------------------------------------
 
 //int main(void) {
-//    parse_json("data/instances/i27.json");
+//    parse_json("data/instances/i08.json");
 //    PriorityQueue* pq;
 //    srand(0);
 //    pq = (PriorityQueue*)calloc(1, sizeof(PriorityQueue));
@@ -1205,7 +1200,7 @@ void printPopulation(void)
 //	printf("Mandatory Patients: %d\n", mandatory_count);
 //	printf("Best Fitness Score: %d\n", G_BEST[CHROMOSOME_SIZE]);
 //    nurse_assignments();
-//    create_json_file(patients, num_patients, nurses, num_nurses, num_rooms, "i27", "D:/major_code/build/output");
+//    create_json_file(patients, num_patients, nurses, num_nurses, num_rooms, "i08", "D:/major_code/build/output");
 //    
 ////
 ////    // Free allocated memory

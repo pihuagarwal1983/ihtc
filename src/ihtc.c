@@ -1589,12 +1589,14 @@ void make_3_vectors(int** room_gender_map) {
     init_Rooms(v_empty, 2);
 
     for (int i = 0; i < num_rooms; i++) {
-        if ((*room_gender_map)[i] == -1)
+        if (((*room_gender_map)[i]) == -1)
             pushback(v_empty, &room[i]);
-        else if ((*room_gender_map)[i] == 0)
-            pushback(v_A, &room[i]);
-        else
-            pushback(v_B, &room[i]);
+        else {
+            if (((*room_gender_map)[i]) == 0)
+                pushback(v_A, &room[i]);
+            else
+                pushback(v_B, &room[i]);
+        }
     }
 }
 
@@ -1621,7 +1623,7 @@ int find_max_surgeon_id(Node* head) {
 int findSuitableRoom(int p_id, RoomVector* vector) {
     // Returns a room_id OR -1 if no suitable room is found
     int flag = 0, j, r_id;
-    int g = patients[p_id].gen; // Gender of patient
+    gender g = patients[p_id].gen; // Gender of patient
     char* age = patients[p_id].age_group; // Age group of patient
 
     // First pass: Look in associated gender-based vector
@@ -1630,7 +1632,7 @@ int findSuitableRoom(int p_id, RoomVector* vector) {
         r_id = vector->data[i]->id;
 
         // Check if room is full
-        if ((room[r_id].cap == (room[r_id].num_patients_allocated + room[r_id].occupants_cap)) || room[r_id].gen != g) {
+        if ((room[r_id].cap == (room[r_id].num_patients_allocated + room[r_id].occupants_cap)) || room[r_id].gen != g ) {
             continue;
         }
 
@@ -2746,7 +2748,7 @@ void nurse_assignments() {
                     nurse_to_be_assigned = arr[m];
                     int max_load_of_nurse_to_be_assigned = max_load_updated[nurse_to_be_assigned->id][3 * i + k];
 
-                    if (max_load_of_nurse_to_be_assigned > 0 && (max_load_of_nurse_to_be_assigned - rooms_requirement[j][3 * i + k].load_sum) >= 3){
+                    if (max_load_of_nurse_to_be_assigned > 0){// && (max_load_of_nurse_to_be_assigned - rooms_requirement[j][3 * i + k].load_sum) >= 3){
                         break;
                     }
                     m++;
@@ -2802,6 +2804,7 @@ void nurse_assignments() {
                     }
                 }
                 else {
+
                     fprintf(stderr, "No valid nurse available for Room %d, Shift %d\n", j, 3 * i + k);
                 }
             }
