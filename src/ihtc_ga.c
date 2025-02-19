@@ -46,7 +46,7 @@ typedef struct {
 } Mand_opt_PQ;
 extern RoomVector* v_A, * v_B, * v_empty;
 
-const int POPULATION_SIZE = 1000, NUM_ITER = 100000, CONVERGENCE_STOPPING_CRITERION = 100;
+const int POPULATION_SIZE = 10000, NUM_ITER = 100000, CONVERGENCE_STOPPING_CRITERION = 100;
 int** POPULATION, * G_BEST, CHROMOSOME_SIZE;
 int** CROSSOVER_OFFSPRING_STORAGE_PLACE, ** CROSSOVER_PARENT_STORAGE_PLACE;
 int* MUTATED_OFFSPRING_STORAGE_PLACE, * MUTATE_PARENT_STORAGE_PLACE, * chromosome;
@@ -561,12 +561,7 @@ int admitPatientsGA(int** room_gender_map, PriorityQueue* pq, int* chromosome) {
             unscheduled_mandatory_patients[i] = 1;
         }
     }
-    /*printf("\nunscheduled_mandatory: \n");
-    for (int i = 0; i < CHROMOSOME_SIZE; i++) {
-        if (unscheduled_mandatory_patients[i] == 1) {
-            printf("%d\t", i);
-        }
-    }*/
+    
    // admit_optional_patients(&room_gender_map, ot_data_arr);
     free(unscheduled_mandatory_patients);
     free(v_A);
@@ -742,7 +737,6 @@ int evaluateFitnessScore(int* chromosome, PriorityQueue* pq)
     reset_values();
     //empty_pq(pq);
 
-
     // FITNESS = MANDATORY PATIENTS WHO WERE ADMITTED DURING THE SCHEDULING PERIOD
     return (mandatory_count - total_unscheduled_mandatory);
 }
@@ -750,12 +744,14 @@ int evaluateFitnessScore(int* chromosome, PriorityQueue* pq)
 void orderCrossover(void) {
     int r1, r2, i, k, m;
     int max = 0;
+
     for (int i = 0; i < CHROMOSOME_SIZE; i++) {
         if (max < CROSSOVER_PARENT_STORAGE_PLACE[0][i])
             max = CROSSOVER_PARENT_STORAGE_PLACE[0][i];
+        if (max < CROSSOVER_PARENT_STORAGE_PLACE[1][i])
+            max = CROSSOVER_PARENT_STORAGE_PLACE[1][i];
     }
 
-    // Dynamic allocation for visited check
     bool* visited1 = (bool*)calloc(max + 1, sizeof(bool));
     bool* visited2 = (bool*)calloc(max + 1, sizeof(bool));
 
@@ -764,7 +760,6 @@ void orderCrossover(void) {
         exit(1);
     }
 
-    // Select two random crossover points
     do {
         r1 = rand() % CHROMOSOME_SIZE;
         r2 = rand() % CHROMOSOME_SIZE;
@@ -776,13 +771,11 @@ void orderCrossover(void) {
         r2 = temp;
     }
 
-    // Initialize offspring with -1 to identify unassigned positions
     for (i = 0; i < CHROMOSOME_SIZE; i++) {
         CROSSOVER_OFFSPRING_STORAGE_PLACE[0][i] = -1;
         CROSSOVER_OFFSPRING_STORAGE_PLACE[1][i] = -1;
     }
 
-    // Step 1: Copy the segment from r1 to r2 and mark visited elements **safely**
     for (i = r1; i <= r2; i++) {
         int gene1 = CROSSOVER_PARENT_STORAGE_PLACE[0][i];
         int gene2 = CROSSOVER_PARENT_STORAGE_PLACE[1][i];
@@ -790,22 +783,18 @@ void orderCrossover(void) {
         CROSSOVER_OFFSPRING_STORAGE_PLACE[0][i] = gene1;
         CROSSOVER_OFFSPRING_STORAGE_PLACE[1][i] = gene2;
 
-        if (gene1 >= 0)
-            visited1[gene1] = true;
-
-        if (gene2 >= 0)
-            visited2[gene2] = true;
+        visited1[gene1] = true;
+        visited2[gene2] = true;
     }
 
-    // Step 2: Fill remaining positions while maintaining order
     k = (r2 + 1) % CHROMOSOME_SIZE;
     m = k;
 
     for (i = 0; i < CHROMOSOME_SIZE; i++) {
         int index = (r2 + 1 + i) % CHROMOSOME_SIZE;
 
-        int gene1 = CROSSOVER_PARENT_STORAGE_PLACE[0][index];
-        if (gene1 >= 0 && !visited1[gene1]) {
+        int gene1 = CROSSOVER_PARENT_STORAGE_PLACE[1][index];
+        if (!visited1[gene1]) {
             while (CROSSOVER_OFFSPRING_STORAGE_PLACE[0][k] != -1) {
                 k = (k + 1) % CHROMOSOME_SIZE;
             }
@@ -813,8 +802,8 @@ void orderCrossover(void) {
             visited1[gene1] = true;
         }
 
-        int gene2 = CROSSOVER_PARENT_STORAGE_PLACE[1][index];
-        if (gene2 >= 0 && !visited2[gene2]) {
+        int gene2 = CROSSOVER_PARENT_STORAGE_PLACE[0][index];
+        if (!visited2[gene2]) {
             while (CROSSOVER_OFFSPRING_STORAGE_PLACE[1][m] != -1) {
                 m = (m + 1) % CHROMOSOME_SIZE;
             }
@@ -823,12 +812,15 @@ void orderCrossover(void) {
         }
     }
 
-    //free(visited1);
-    //free(visited2);
+	CROSSOVER_OFFSPRING_STORAGE_PLACE[0][CHROMOSOME_SIZE] = -1;
+	CROSSOVER_OFFSPRING_STORAGE_PLACE[0][CHROMOSOME_SIZE+1] = -1;
+    CROSSOVER_OFFSPRING_STORAGE_PLACE[1][CHROMOSOME_SIZE] = -1;
+    CROSSOVER_OFFSPRING_STORAGE_PLACE[1][CHROMOSOME_SIZE+1] = -1;
+
+    free(visited1);
+    free(visited2);
 }
-
    
-
 void swapMutation(void)
 {   // take the offspring from MUTATED_OFFSPRING_STORAGE_PLACE and mutate it using SWAP MUTATION method
     int r1, r2;
@@ -844,6 +836,9 @@ void swapMutation(void)
     MUTATED_OFFSPRING_STORAGE_PLACE[r1] += MUTATED_OFFSPRING_STORAGE_PLACE[r2];
     MUTATED_OFFSPRING_STORAGE_PLACE[r2] = MUTATED_OFFSPRING_STORAGE_PLACE[r1] - MUTATED_OFFSPRING_STORAGE_PLACE[r2];
     MUTATED_OFFSPRING_STORAGE_PLACE[r1] -= MUTATED_OFFSPRING_STORAGE_PLACE[r2];
+
+	MUTATED_OFFSPRING_STORAGE_PLACE[CHROMOSOME_SIZE] = -1;
+	MUTATED_OFFSPRING_STORAGE_PLACE[CHROMOSOME_SIZE + 1] = -1;
 }
 
 void swapGenes(int chromo_num, int r1, int r2)
@@ -871,8 +866,6 @@ void generateNewChromosome(int chromo_num)
     }
 }
 
-
-
 void generatePopulation(void)
 {
     int i, j;
@@ -887,190 +880,189 @@ void generatePopulation(void)
 }
 
 
-//void crossoverTournamentSelection(void)
-//{   // select 2 parents using Tournament Selection method
-//    int r11, r12, r13, r21, r22, r23, f11, f12, f13, f21, f22, f23;
-//    int best_fitness, best_fitness_idx1, best_fitness_idx2;
-//
-//    // select first parent
-//    do {
-//        r11 = rand() % (POPULATION_SIZE);
-//        r12 = rand() % (POPULATION_SIZE);
-//        r13 = rand() % (POPULATION_SIZE);
-//    } while (r11 == r12 || r12 == r13 || r11 == r13);
-//
-//    // select the chromosome1 with the best fitness
-//    f11 = POPULATION[r11][CHROMOSOME_SIZE];
-//    f12 = POPULATION[r12][CHROMOSOME_SIZE];
-//    f13 = POPULATION[r13][CHROMOSOME_SIZE];
-//    best_fitness = f11;
-//    best_fitness_idx1 = r11;
-//
-//    if (f12 > best_fitness) {
-//        if (f13 > f12) {
-//            best_fitness = f13;
-//            best_fitness_idx1 = r13;
-//        }
-//        else {
-//            best_fitness = f12;
-//            best_fitness_idx1 = r12;
-//        }
-//    }
-//    else
-//        if (f13 > best_fitness) {
-//            best_fitness = f13;
-//            best_fitness_idx1 = r13;
-//        }
-//
-//
-//    // select second parent
-//    do {
-//        r21 = rand() % (POPULATION_SIZE);
-//        r22 = rand() % (POPULATION_SIZE);
-//        r23 = rand() % (POPULATION_SIZE);
-//    } while (r21 == r22 || r22 == r23 || r21 == r23 ||
-//        r11 == r21 || r11 == r22 || r11 == r23 ||
-//        r12 == r21 || r12 == r22 || r12 == r23 ||
-//        r13 == r21 || r13 == r22 || r13 == r23);
-//
-//    // select the chromosome2 with the best fitness
-//    f21 = POPULATION[r21][CHROMOSOME_SIZE];
-//    f22 = POPULATION[r22][CHROMOSOME_SIZE];
-//    f23 = POPULATION[r23][CHROMOSOME_SIZE];
-//    best_fitness = f21;
-//    best_fitness_idx2 = r21;
-//
-//    if (f22 > best_fitness) {
-//        if (f23 > f22) {
-//            best_fitness = f23;
-//            best_fitness_idx2 = r23;
-//        }
-//        else {
-//            best_fitness = f22;
-//            best_fitness_idx2 = r22;
-//        }
-//    }
-//    else
-//        if (f23 > best_fitness) {
-//            best_fitness = f23;
-//            best_fitness_idx2 = r23;
-//        }
-//    memcpy(CROSSOVER_PARENT_STORAGE_PLACE[0], POPULATION[best_fitness_idx1], (CHROMOSOME_SIZE + 1) * sizeof(int));
-//    memcpy(CROSSOVER_PARENT_STORAGE_PLACE[1], POPULATION[best_fitness_idx2], (CHROMOSOME_SIZE + 1) * sizeof(int));
-//}
-//
-//void mutationTournamentSelection(void)
-//{   // select 2 parents using Tournament Selection method
-//    int r1, r2, r3, f1, f2, f3;
-//    int best_fitness, best_fitness_idx;
-//
-//    // select first parent
-//    do {
-//        r1 = rand() % (POPULATION_SIZE);
-//        r2 = rand() % (POPULATION_SIZE);
-//        r3 = rand() % (POPULATION_SIZE);
-//    } while (r1 == r2 || r2 == r3 || r1 == r3);
-//
-//    // select the chromosome1 with the best fitness
-//    f1 = POPULATION[r1][CHROMOSOME_SIZE];
-//    f2 = POPULATION[r2][CHROMOSOME_SIZE];
-//    f3 = POPULATION[r3][CHROMOSOME_SIZE];
-//    best_fitness = f1;
-//    best_fitness_idx = r1;
-//
-//    if (f2 > best_fitness) {
-//        if (f3 > f2) {
-//            best_fitness = f3;
-//            best_fitness_idx = r3;
-//        }
-//        else {
-//            best_fitness = f2;
-//            best_fitness_idx = r2;
-//        }
-//    }
-//    else
-//        if (f3 > best_fitness) {
-//            best_fitness = f3;
-//            best_fitness_idx = r3;
-//        }
-//
-//    memcpy(MUTATE_PARENT_STORAGE_PLACE, POPULATION[best_fitness_idx], (CHROMOSOME_SIZE + 1) * sizeof(int));
-//}
-
-void crossoverTournamentSelection_temp(void)
+void crossoverTournamentSelection(void)
 {   // select 2 parents using Tournament Selection method
-    int i, best_fitness , best_fitness_idx1 = 0, best_fitness_idx2 = 0;
+    int r11, r12, r13, r21, r22, r23, f11, f12, f13, f21, f22, f23;
+    int best_fitness, best_fitness_idx1, best_fitness_idx2;
 
     // select first parent
-	best_fitness = POPULATION[0][CHROMOSOME_SIZE];
-    for (i = 1; i < POPULATION_SIZE; ++i) {
-		if (POPULATION[i][CHROMOSOME_SIZE] > best_fitness) {
-			best_fitness = POPULATION[i][CHROMOSOME_SIZE];
-			best_fitness_idx1 = i;
-		}
-    }
+    do {
+        r11 = rand() % (POPULATION_SIZE);
+        r12 = rand() % (POPULATION_SIZE);
+        r13 = rand() % (POPULATION_SIZE);
+    } while (r11 == r12 || r12 == r13 || r11 == r13);
 
-	// select second parent
-	best_fitness = POPULATION[0][CHROMOSOME_SIZE];
-	for (i = 1; i < POPULATION_SIZE; ++i) {
-		if (POPULATION[i][CHROMOSOME_SIZE] > best_fitness && i != best_fitness_idx1) {
-			best_fitness = POPULATION[i][CHROMOSOME_SIZE];
-			best_fitness_idx2 = i;
-		}
-	}
-    
+    // select the chromosome1 with the best fitness
+    f11 = POPULATION[r11][CHROMOSOME_SIZE];
+    f12 = POPULATION[r12][CHROMOSOME_SIZE];
+    f13 = POPULATION[r13][CHROMOSOME_SIZE];
+    best_fitness = f11;
+    best_fitness_idx1 = r11;
+
+    if (f12 > best_fitness) {
+        if (f13 > f12) {
+            best_fitness = f13;
+            best_fitness_idx1 = r13;
+        }
+        else {
+            best_fitness = f12;
+            best_fitness_idx1 = r12;
+        }
+    }
+    else
+        if (f13 > best_fitness) {
+            best_fitness = f13;
+            best_fitness_idx1 = r13;
+        }
+
+    // select second parent
+    do {
+        r21 = rand() % (POPULATION_SIZE);
+        r22 = rand() % (POPULATION_SIZE);
+        r23 = rand() % (POPULATION_SIZE);
+    } while (r21 == r22 || r22 == r23 || r21 == r23 ||
+        r11 == r21 || r11 == r22 || r11 == r23 ||
+        r12 == r21 || r12 == r22 || r12 == r23 ||
+        r13 == r21 || r13 == r22 || r13 == r23);
+
+    // select the chromosome2 with the best fitness
+    f21 = POPULATION[r21][CHROMOSOME_SIZE];
+    f22 = POPULATION[r22][CHROMOSOME_SIZE];
+    f23 = POPULATION[r23][CHROMOSOME_SIZE];
+    best_fitness = f21;
+    best_fitness_idx2 = r21;
+
+    if (f22 > best_fitness) {
+        if (f23 > f22) {
+            best_fitness = f23;
+            best_fitness_idx2 = r23;
+        }
+        else {
+            best_fitness = f22;
+            best_fitness_idx2 = r22;
+        }
+    }
+    else
+        if (f23 > best_fitness) {
+            best_fitness = f23;
+            best_fitness_idx2 = r23;
+        }
     memcpy(CROSSOVER_PARENT_STORAGE_PLACE[0], POPULATION[best_fitness_idx1], (CHROMOSOME_SIZE + 1) * sizeof(int));
     memcpy(CROSSOVER_PARENT_STORAGE_PLACE[1], POPULATION[best_fitness_idx2], (CHROMOSOME_SIZE + 1) * sizeof(int));
 }
 
-void mutationTournamentSelection_temp(void)
+void mutationTournamentSelection(void)
 {   // select 2 parents using Tournament Selection method
-    int r1 = 0 , r2 = 0, r3 = 0, f1 = 0, f2 = 0, f3 = 0;
-    int best_fitness = 0, best_fitness_idx = 0, i;
+    int r1, r2, r3, f1, f2, f3;
+    int best_fitness, best_fitness_idx;
 
-    best_fitness = POPULATION[0][CHROMOSOME_SIZE];
-    for (i = 1; i < POPULATION_SIZE; ++i) {
-        if (POPULATION[i][CHROMOSOME_SIZE] > best_fitness) {
-            best_fitness = POPULATION[i][CHROMOSOME_SIZE];
-            best_fitness_idx = i;
+    // select first parent
+    do {
+        r1 = rand() % (POPULATION_SIZE);
+        r2 = rand() % (POPULATION_SIZE);
+        r3 = rand() % (POPULATION_SIZE);
+    } while (r1 == r2 || r2 == r3 || r1 == r3);
+
+    // select the chromosome1 with the best fitness
+    f1 = POPULATION[r1][CHROMOSOME_SIZE];
+    f2 = POPULATION[r2][CHROMOSOME_SIZE];
+    f3 = POPULATION[r3][CHROMOSOME_SIZE];
+    best_fitness = f1;
+    best_fitness_idx = r1;
+
+    if (f2 > best_fitness) {
+        if (f3 > f2) {
+            best_fitness = f3;
+            best_fitness_idx = r3;
         }
-        else
-            if (f3 > best_fitness) {
-                best_fitness = f3;
-                best_fitness_idx = r3;
-            }
+        else {
+            best_fitness = f2;
+            best_fitness_idx = r2;
+        }
     }
+    else
+        if (f3 > best_fitness) {
+            best_fitness = f3;
+            best_fitness_idx = r3;
+        }
 
     memcpy(MUTATE_PARENT_STORAGE_PLACE, POPULATION[best_fitness_idx], (CHROMOSOME_SIZE + 1) * sizeof(int));
 }
 
-
-void crossoverElitism(void)
-{
-    int i, worst_fitness_chromosome_index = 0, second_worst_fitness_chromosome_index = 0;
-
-    for (i = 1; i < POPULATION_SIZE; ++i)
-        if (POPULATION[i][CHROMOSOME_SIZE] < POPULATION[worst_fitness_chromosome_index][CHROMOSOME_SIZE])
-            worst_fitness_chromosome_index = i;
-
-    for (i = 1; i < POPULATION_SIZE; ++i)
-        if (POPULATION[i][CHROMOSOME_SIZE] < POPULATION[second_worst_fitness_chromosome_index][CHROMOSOME_SIZE] &&
-            i != worst_fitness_chromosome_index)
-            second_worst_fitness_chromosome_index = i;
-
-    // replace the offsprings with the worst chromosomes
-    //............................................................................change..........................................................
-    if (CROSSOVER_OFFSPRING_STORAGE_PLACE[0][CHROMOSOME_SIZE] > POPULATION[worst_fitness_chromosome_index][CHROMOSOME_SIZE])
-        memcpy(POPULATION[worst_fitness_chromosome_index], CROSSOVER_OFFSPRING_STORAGE_PLACE[0], sizeof(int) * (CHROMOSOME_SIZE + 1));
-    else {
-        if (CROSSOVER_OFFSPRING_STORAGE_PLACE[1][CHROMOSOME_SIZE] > POPULATION[worst_fitness_chromosome_index][CHROMOSOME_SIZE])
-            memcpy(POPULATION[worst_fitness_chromosome_index], CROSSOVER_OFFSPRING_STORAGE_PLACE[1], sizeof(int) * (CHROMOSOME_SIZE + 1));
-        return;
-    }
-
-    if (CROSSOVER_OFFSPRING_STORAGE_PLACE[1][CHROMOSOME_SIZE] > POPULATION[second_worst_fitness_chromosome_index][CHROMOSOME_SIZE])
-        memcpy(POPULATION[second_worst_fitness_chromosome_index], CROSSOVER_OFFSPRING_STORAGE_PLACE[1], sizeof(int) * (CHROMOSOME_SIZE + 1));
-}
+//void crossoverTournamentSelection_temp(void)
+//{   // select 2 parents using Tournament Selection method
+//    int i, best_fitness , best_fitness_idx1 = 0, best_fitness_idx2 = 0;
+//
+//    // select first parent
+//	best_fitness = POPULATION[0][CHROMOSOME_SIZE];
+//    for (i = 1; i < POPULATION_SIZE; ++i) {
+//		if (POPULATION[i][CHROMOSOME_SIZE] > best_fitness) {
+//			best_fitness = POPULATION[i][CHROMOSOME_SIZE];
+//			best_fitness_idx1 = i;
+//		}
+//    }
+//
+//	// select second parent
+//	best_fitness = POPULATION[0][CHROMOSOME_SIZE];
+//	for (i = 1; i < POPULATION_SIZE; ++i) {
+//		if (POPULATION[i][CHROMOSOME_SIZE] > best_fitness && i != best_fitness_idx1) {
+//			best_fitness = POPULATION[i][CHROMOSOME_SIZE];
+//			best_fitness_idx2 = i;
+//		}
+//	}
+//    
+//    memcpy(CROSSOVER_PARENT_STORAGE_PLACE[0], POPULATION[best_fitness_idx1], (CHROMOSOME_SIZE + 1) * sizeof(int));
+//    memcpy(CROSSOVER_PARENT_STORAGE_PLACE[1], POPULATION[best_fitness_idx2], (CHROMOSOME_SIZE + 1) * sizeof(int));
+//}
+//
+//void mutationTournamentSelection_temp(void)
+//{   // select 2 parents using Tournament Selection method
+//    int r1 = 0 , r2 = 0, r3 = 0, f1 = 0, f2 = 0, f3 = 0;
+//    int best_fitness = 0, best_fitness_idx = 0, i;
+//
+//    best_fitness = POPULATION[0][CHROMOSOME_SIZE];
+//    for (i = 1; i < POPULATION_SIZE; ++i) {
+//        if (POPULATION[i][CHROMOSOME_SIZE] > best_fitness) {
+//            best_fitness = POPULATION[i][CHROMOSOME_SIZE];
+//            best_fitness_idx = i;
+//        }
+//        else
+//            if (f3 > best_fitness) {
+//                best_fitness = f3;
+//                best_fitness_idx = r3;
+//            }
+//    }
+//
+//    memcpy(MUTATE_PARENT_STORAGE_PLACE, POPULATION[best_fitness_idx], (CHROMOSOME_SIZE + 1) * sizeof(int));
+//}
+//
+//
+//void crossoverElitism(void)
+//{
+//    int i, worst_fitness_chromosome_index = 0, second_worst_fitness_chromosome_index = 0;
+//
+//    for (i = 1; i < POPULATION_SIZE; ++i)
+//        if (POPULATION[i][CHROMOSOME_SIZE] < POPULATION[worst_fitness_chromosome_index][CHROMOSOME_SIZE])
+//            worst_fitness_chromosome_index = i;
+//
+//    for (i = 1; i < POPULATION_SIZE; ++i)
+//        if (POPULATION[i][CHROMOSOME_SIZE] < POPULATION[second_worst_fitness_chromosome_index][CHROMOSOME_SIZE] &&
+//            i != worst_fitness_chromosome_index)
+//            second_worst_fitness_chromosome_index = i;
+//
+//    // replace the offsprings with the worst chromosomes
+//    //............................................................................change..........................................................
+//    if (CROSSOVER_OFFSPRING_STORAGE_PLACE[0][CHROMOSOME_SIZE] > POPULATION[worst_fitness_chromosome_index][CHROMOSOME_SIZE])
+//        memcpy(POPULATION[worst_fitness_chromosome_index], CROSSOVER_OFFSPRING_STORAGE_PLACE[0], sizeof(int) * (CHROMOSOME_SIZE + 1));
+//    else {
+//        if (CROSSOVER_OFFSPRING_STORAGE_PLACE[1][CHROMOSOME_SIZE] > POPULATION[worst_fitness_chromosome_index][CHROMOSOME_SIZE])
+//            memcpy(POPULATION[worst_fitness_chromosome_index], CROSSOVER_OFFSPRING_STORAGE_PLACE[1], sizeof(int) * (CHROMOSOME_SIZE + 1));
+//        return;
+//    }
+//
+//    if (CROSSOVER_OFFSPRING_STORAGE_PLACE[1][CHROMOSOME_SIZE] > POPULATION[second_worst_fitness_chromosome_index][CHROMOSOME_SIZE])
+//        memcpy(POPULATION[second_worst_fitness_chromosome_index], CROSSOVER_OFFSPRING_STORAGE_PLACE[1], sizeof(int) * (CHROMOSOME_SIZE + 1));
+//}
 
 void mutationElitism(void)
 {
@@ -1168,7 +1160,7 @@ void printPopulation(void)
 //---------------------------------------------------------ABOVE: GENETIC ALGORITHM-------------------------------------------------------------
 
 //int main(void) {
-//    parse_json("data/instances/i27.json");
+//    parse_json("data/instances/i08.json");
 //    PriorityQueue* pq;
 //    srand(0);
 //    pq = (PriorityQueue*)calloc(1, sizeof(PriorityQueue));
@@ -1205,7 +1197,7 @@ void printPopulation(void)
 //	printf("Mandatory Patients: %d\n", mandatory_count);
 //	printf("Best Fitness Score: %d\n", G_BEST[CHROMOSOME_SIZE]);
 //    nurse_assignments();
-//    create_json_file(patients, num_patients, nurses, num_nurses, num_rooms, "i27", "D:/major_code/build/output");
+//    create_json_file(patients, num_patients, nurses, num_nurses, num_rooms, "i08", "D:/major_code/build/output");
 //    
 ////
 ////    // Free allocated memory
