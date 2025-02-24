@@ -14,7 +14,7 @@ int mandatory_count = 0;       // Counter for mandatory patients
 int optional_count = 0;        // Counter for optional patients
 int current_ot_index = 0;      // Index to track current operating theater
 
-
+// sort_ot_data_arr
 //// int is_admitted[1000] = {0}; // we're not using this array anywhere so let's comment it out
 int num_gender_A_rooms, num_gender_B_rooms, num_empty_rooms;
 int* current_size_dm_nurse;
@@ -173,13 +173,14 @@ void free_occupants() {
 
 void assign_occupants_to_rooms(void) {
     // here we'll update the occupants_Cap filed of each room
-    // method - parse the occupants array (arr of structs) and find out what's its room id and then increase the 
+    // method - parse the occupants array (arr of structs) and find out what's its room id and then increase the
     // occupants_cap filed of that room
     int i, r_id;
     for (i = 0; i < num_occupants; ++i) {
         r_id = occupants[i].room_id;
         room[r_id].occupants_cap++;
         room[r_id].gen = occupants[i].gen;
+        room[r_id].num_patients_info++;
     }
 }
 
@@ -456,7 +457,7 @@ void assign_patients_to_surgeon(void) {
     // }
     // Assign patients to surgeons based on surgeon_id
     for (int i = 0; i < num_patients; i++) {
-        int surgeon_index = patients[i].surgeon_id;  // Get the surgeon_id from the patient 
+        int surgeon_index = patients[i].surgeon_id;  // Get the surgeon_id from the patient
         if (surgeon[surgeon_index].patients_assigned == NULL) {
             surgeon[surgeon_index].patients_assigned = (int*)calloc(100, sizeof(int)); // create a block for 100 patients
             surgeon[surgeon_index].current_size = 100;
@@ -574,6 +575,7 @@ void parse_rooms(cJSON* room_array) {
         cJSON* item = cJSON_GetArrayItem(room_array, i);
         if (!item) continue;
         room[i].nurses_alloted = (int*)calloc(1, sizeof(int));
+        room[i].num_patients_info = (int*)calloc(days, sizeof(int));
         cJSON* id_json = cJSON_GetObjectItem(item, "id");
         // room[i].occupied_cap = -1;
         if (id_json && cJSON_IsString(id_json)) room[i].id = str2int(id_json->valuestring);
@@ -1458,7 +1460,7 @@ void sort_s_data_arr(Surgeon_data** s_data_arr, int n, Node* head) {
         s_data_arr[s_id]->isNull = 0;
     }
 
-    // for null pointers - we're creating a structure and putting: 
+    // for null pointers - we're creating a structure and putting:
     // 1 in isNull field    -1 in surgeon_id field  0 in num_assigned_patients  NULL in assigned_patients array.
     for (i = 0; i < n; ++i)
         if (s_data_arr[i] == NULL) {
@@ -1467,7 +1469,7 @@ void sort_s_data_arr(Surgeon_data** s_data_arr, int n, Node* head) {
             s_data_arr[i]->surgeon_id = -1;
         }
     // print_s_data_arr(s_data_arr, n);
- //quick_sort_surgeons_on_s_duration_sum(s_data_arr, 0, n-1);  
+ //quick_sort_surgeons_on_s_duration_sum(s_data_arr, 0, n-1);
     qsort(s_data_arr, n, sizeof(Surgeon_data*), compare_surgeon);
     // print_s_data_arr(s_data_arr, n, sorting_day);
 }
@@ -1478,16 +1480,12 @@ void sort_s_data_arr(Surgeon_data** s_data_arr, int n, Node* head) {
 
 //-----------------------------------------BELOW: QUICK SORT IMPLEMENTATION FOR THE OT ARRAY--------------------------------------
 
-
-
 void print_ot_data_arr(OTs** ot_data_arr, int d) {
     printf("Day: %d\n", d);
     for (int i = 0; i < num_ots; i++) {
         printf("id: %d -- max_ot_time: %d\n", ot_data_arr[i]->id, ot_data_arr[i]->max_ot_time[d]);
     }
 }
-
-
 
 int compare_ots(const void* a, const void* b) {
     OTs* ot_a = *(OTs**)a;
@@ -1694,7 +1692,7 @@ void update_LOS_of_patients(int d) {
     GenderRoom* gen_array;
     Occupants occ;
 
-    // first consider the occupants - 
+    // first consider the occupants -
     // if an occupant's LOS is over then throw him out of the room and make space of a patient.
     for (i = 0; i < num_occupants; ++i) {
         occ = occupants[i];
@@ -1731,7 +1729,7 @@ void update_LOS_of_patients(int d) {
                 days_passed = d - admit_day;
                 if (days_passed >= los && p->pointer->is_admitted) {
                     // release the patient
-                    // remove this patient's data from everywhere, i.e. 
+                    // remove this patient's data from everywhere, i.e.
                     // from room (capacity, gender, age-mix)
                     // update the data in nurses array about this patient
                     room[r_id].num_patients_allocated--;
@@ -1970,7 +1968,7 @@ OTs* admitFromPQ(PriorityQueue* pq, int d, OTs** ot_data_arr, OTs* current_ot, i
 //          len_surgeon_array = max_surgeon_id + 1;
 //          // Added 1 to max_surgeon_id cuz we need space for the nth (max_is) also, so we'll have to make the total length (n+1)
 //          s_data_arr = (Surgeon_data**)calloc(len_surgeon_array, sizeof(Surgeon_data*));
-//          sort_s_data_arr(s_data_arr, len_surgeon_array, head); 
+//          sort_s_data_arr(s_data_arr, len_surgeon_array, head);
 //      }
 //      else {
 //          continue;
@@ -2045,7 +2043,7 @@ OTs* admitFromPQ(PriorityQueue* pq, int d, OTs** ot_data_arr, OTs* current_ot, i
 //                          //surgeon[s_data_arr[k]->surgeon_id].time_left[d] -= s_duration;
 //                          patients[temp_patient_id].is_admitted = 1;
 //                      }
-//                      
+//
 //                      /*printVector("A", v_A);
 //                      printVector("B", v_B);
 //                      printVector("Empty", v_empty);*/
@@ -2105,7 +2103,7 @@ OTs* admitFromPQ(PriorityQueue* pq, int d, OTs** ot_data_arr, OTs* current_ot, i
 //                               patients[i].is_admitted = 1;
 //                               printVector("A", v_A);
 //                               printVector("B", v_B);
-//                               printVector("Empty", v_empty); 
+//                               printVector("Empty", v_empty);
 //                           }
 //                           else {
 //                               insertNodeInPQ(pq, makeHeapNode(p_id, patients[p_id].mandatory, patients[p_id].surgery_due_day, 0, patients[p_id].length_of_stay));
@@ -2113,7 +2111,7 @@ OTs* admitFromPQ(PriorityQueue* pq, int d, OTs** ot_data_arr, OTs* current_ot, i
 //                       }
 //                   }
 //               }
-//               // the patient is optional - 
+//               // the patient is optional -
 //               /*
 //               Bcz we know that in the sorted_mandatory_patients array, first there are mandatory patients in the linked list and then
 //               the optional ones are there. So the control will only come to this else block when all the mandatory patients have been
@@ -2599,7 +2597,7 @@ void create_dm_nurses_availability() {
     allocate_dm_nurses_availability();
     initialize_current_size_dm_nurse();
     for (int i = 0; i < 3 * days; i++) {
-        allocate_sub_array(dm_nurses_availability, i, 2); // Initial subarray size												   
+        allocate_sub_array(dm_nurses_availability, i, 2); // Initial subarray size
     }
     for (int i = 0; i < num_nurses; i++) {
         for (int j = 0; j < nurses[i].num_shifts; j++) {
@@ -2911,7 +2909,7 @@ void create_json_file(Patient* patients, int num_patients, Nurses* nurse, int nu
 //   initialize_room_gender_map(&room_gender_map);
 //
 //   pq = (PriorityQueue*)calloc(1, sizeof(PriorityQueue));
-//   initPQ(pq, 20); // InitalCapacity = 20. It'll resizePQ itself if we try to insert more HeapNodes in it. 
+//   initPQ(pq, 20); // InitalCapacity = 20. It'll resizePQ itself if we try to insert more HeapNodes in it.
 //   populate_room_gender_map(&room_gender_map);
 //   v_A = (RoomVector*)malloc(sizeof(RoomVector));
 //   v_B = (RoomVector*)malloc(sizeof(RoomVector));

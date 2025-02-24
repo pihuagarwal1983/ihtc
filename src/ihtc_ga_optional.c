@@ -482,7 +482,6 @@ extern void orderCrossover(void);
 extern void swapMutation(void);
 extern void swapGenes(int, int, int);
 extern void generateNewChromosome(int);
-extern void generatePopulation(void);
 void crossoverTournamentSelection2(void);
 //void crossoverTournamentSelection_temp2(void);
 void mutationTournamentSelection2(void);
@@ -835,7 +834,6 @@ void initDataStructures2(void)
         POPULATION[i][CHROMOSOME_SIZE+1] = -1;
     }
 }
-
 
 void generatePopulation2(void)
 {

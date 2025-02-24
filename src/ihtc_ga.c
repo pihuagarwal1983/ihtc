@@ -253,7 +253,7 @@ OTs* admitFromPQ_GA(PriorityQueue* pq, int d, OTs** ot_data_arr, OTs* current_ot
                 }
             }
         }
-    
+
 
     for (int i = 0; i < vector->size; i++) {
         insertNodeInPQ(pq, *(vector->data[i]));
@@ -561,7 +561,7 @@ int admitPatientsGA(int** room_gender_map, PriorityQueue* pq, int* chromosome) {
             unscheduled_mandatory_patients[i] = 1;
         }
     }
-    
+
    // admit_optional_patients(&room_gender_map, ot_data_arr);
     free(unscheduled_mandatory_patients);
     free(v_A);
@@ -573,7 +573,7 @@ int admitPatientsGA(int** room_gender_map, PriorityQueue* pq, int* chromosome) {
 void admit_optional_patients(int** room_gender_map, OTs ** ot_data_arr) {
     int p_id, r_id, day, assigned_ot, flag, j, i;
     OTs* current_ot;
-    
+
         for (day = 0; day < days; day++) {
         current_ot = ot_data_arr[0];
 
@@ -691,7 +691,7 @@ void applyGeneticAlgorithm(PriorityQueue * pq)
             //crossoverTournamentSelection();
             orderCrossover();
 			//printf("\nCrossover Offsprings: ");
-            
+
             // calculate the fitness of the 2 new offsprings
             for (j = 0; j < 2; ++j)
                 CROSSOVER_OFFSPRING_STORAGE_PLACE[j][CHROMOSOME_SIZE] = evaluateFitnessScore(CROSSOVER_OFFSPRING_STORAGE_PLACE[j], pq);
@@ -820,7 +820,7 @@ void orderCrossover(void) {
     free(visited1);
     free(visited2);
 }
-   
+
 void swapMutation(void)
 {   // take the offspring from MUTATED_OFFSPRING_STORAGE_PLACE and mutate it using SWAP MUTATION method
     int r1, r2;
@@ -878,7 +878,6 @@ void generatePopulation(void)
     for (i = 1; i < POPULATION_SIZE; ++i)
         generateNewChromosome(i);
 }
-
 
 void crossoverTournamentSelection(void)
 {   // select 2 parents using Tournament Selection method
@@ -1010,7 +1009,7 @@ void mutationTournamentSelection(void)
 //			best_fitness_idx2 = i;
 //		}
 //	}
-//    
+//
 //    memcpy(CROSSOVER_PARENT_STORAGE_PLACE[0], POPULATION[best_fitness_idx1], (CHROMOSOME_SIZE + 1) * sizeof(int));
 //    memcpy(CROSSOVER_PARENT_STORAGE_PLACE[1], POPULATION[best_fitness_idx2], (CHROMOSOME_SIZE + 1) * sizeof(int));
 //}
@@ -1110,7 +1109,7 @@ void initDataStructures(void)
     }
 
     // Uncomment this if required
-    
+
     POPULATION = (int**)calloc(POPULATION_SIZE, sizeof(int*));
     ASSERT(POPULATION, "Dynamic Memory Allocation Error for POPULATION");
 
@@ -1121,7 +1120,7 @@ void initDataStructures(void)
         // Set last column to -1 if needed
         POPULATION[i][CHROMOSOME_SIZE] = -1;
     }
-    
+
 }
 
 
@@ -1183,9 +1182,9 @@ void printPopulation(void)
 //    printf("Best Fitness Score: %d\n", G_BEST[CHROMOSOME_SIZE]);
 //	reset_values();
 //    admitPatientsGA(&room_gender_map, pq, G_BEST);
-//    
-//    //print_rooms();   
-////    freeDataStructures();   
+//
+//    //print_rooms();
+////    freeDataStructures();
 //    create_dm_nurses_availability();
 //    sorting_nurse_id_max_load();
 //    create_3d_array();
@@ -1198,7 +1197,7 @@ void printPopulation(void)
 //	printf("Best Fitness Score: %d\n", G_BEST[CHROMOSOME_SIZE]);
 //    nurse_assignments();
 //    create_json_file(patients, num_patients, nurses, num_nurses, num_rooms, "i08", "D:/major_code/build/output");
-//    
+//
 ////
 ////    // Free allocated memory
 ////    // free_patients_sorted_array(sorted_mandatory_patients);
