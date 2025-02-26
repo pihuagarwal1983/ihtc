@@ -21,12 +21,6 @@ extern int current_ot_index;
 extern int* room_gender_map;
 //extern RoomVector* v_A, * v_B, * v_empty;
 
-extern const int POPULATION_SIZE, NUM_ITER, CONVERGENCE_STOPPING_CRITERION;
-extern int** POPULATION, * G_BEST;
-int size;
-extern int** CROSSOVER_OFFSPRING_STORAGE_PLACE, ** CROSSOVER_PARENT_STORAGE_PLACE;
-extern int* MUTATED_OFFSPRING_STORAGE_PLACE, * MUTATE_PARENT_STORAGE_PLACE, * chromosome;
-
 extern Nurses* nurses;
 extern Shifts* shift;
 extern Weights* weights;
@@ -39,7 +33,6 @@ extern Surgeon* surgeon;
 extern OTs* ot;
 extern Rooms* room;
 // one idea is that make the patients_assigned array a static array and remove num_patients_assigned field from the structure.
-
 
 extern void parse_occupants(cJSON* occupants_array);
 extern void free_occupants();
@@ -108,10 +101,10 @@ void reset_valuesNewGA(void) {
     //reset the OT structure values.
     //reset the nurse structure values.
     //reset the occupants structure values.
-
+    int i;
 
     //patient_structure
-    for (int i = 0; i < num_patients; i++) {
+    for (i = 0; i < num_patients; i++) {
         patients[i].is_admitted = 0;
         patients[i].assigned_ot = -1;
         patients[i].assigned_room_no = -1;
@@ -120,7 +113,7 @@ void reset_valuesNewGA(void) {
     }
 
     //room_structure
-    for (int i = 0; i < num_rooms; i++) {
+    for (i = 0; i < num_rooms; i++) {
         room[i].num_patients_allocated = 0;
         room[i].occupants_cap = 0;
         for (j=0; j<days; ++j)
@@ -129,10 +122,19 @@ void reset_valuesNewGA(void) {
     assign_occupants_to_rooms();
 
     //surgeon_structure
-    for (int i = 0; i < num_surgeons; i++) for (int j = 0; j < days; j++) surgeon[i].time_left[j] = surgeon[i].max_surgery_time[j];
+    for (i = 0; i < num_surgeons; i++) for (int j = 0; j < days; j++) surgeon[i].time_left[j] = surgeon[i].max_surgery_time[j];
 
 	//OT_structure
-    for (int i = 0; i < num_ots; i++) for (int j = 0; j < days; j++) ot[i].time_left[j] = ot[i].max_ot_time[j];
+    for (i = 0; i < num_ots; i++) for (int j = 0; j < days; j++) ot[i].time_left[j] = ot[i].max_ot_time[j];
+}
+
+void printOtDaysDataArr(OTs ***arr)
+{   int d, i;
+    for (d=0; d<days; ++d) {
+        putchar ('\n');
+        for (i=0; i<num_ots; ++i)
+            printf("id: %d\tmax_ot_time: %d", arr[d][i].id, arr[d][i].max_ot_time[d]);
+    }
 }
 
 int admitPatientsNewGA(int** room_gender_map, PriorityQueue* pq, int* chromosome) {
@@ -140,7 +142,6 @@ int admitPatientsNewGA(int** room_gender_map, PriorityQueue* pq, int* chromosome
     int unscheduled_mandatory = 0, scheduled_optional = 0, scheduled_mandatory = 0;
     OTs** ot_data_arr, * current_ot, **ot_days_data_arr[days];
     int p, d;
-	gender g;
 
     //v_A = (RoomVector*)calloc(1, sizeof(RoomVector));
     //v_B = (RoomVector*)calloc(1, sizeof(RoomVector));
@@ -160,6 +161,7 @@ int admitPatientsNewGA(int** room_gender_map, PriorityQueue* pq, int* chromosome
         ot_data_arr[i] = ot + i;
 
     for (i=0; i<days; ++i) {
+        ot_days_data_arr[i] = (OTs **) calloc (num_ots, sizeof(OT *));
         memcpy(ot_days_data_arr[i], ot_data_arr, num_ots * sizeof(int));
         //ot_days_data_arr[i] = ot_data_arr;
         sort_ot_data_arr(ot_days_data_arr[i], i);
@@ -176,11 +178,10 @@ int admitPatientsNewGA(int** room_gender_map, PriorityQueue* pq, int* chromosome
     for (p = 0; p < CHROMOSOME_SIZE_NEW_GA; ++p) {
 		s_id = patients[chromosome[p]].surgeon_id;
 		p_id = chromosome[p];
-		g = patients[p_id].gen;
 
         // parsing all the days in the scheduling period
         for (d = patients[p_id].surgery_release_day; d < days; ++d) {
-            if (d > patients[p_id].surgery_due_day) break;
+            if (d > patients[p_id].surgery_due_day && patients[p_id].mandatory) break;
             if (surgeon[s_id].time_left[d] < patients[p_id].surgery_duration) continue;
             //updateResources(d);
             current_ot_index = 0;
@@ -196,11 +197,12 @@ int admitPatientsNewGA(int** room_gender_map, PriorityQueue* pq, int* chromosome
                 room[r_id].num_patients_info[d]++;
                 room[r_id].num_patients_allocated++;
                 patients[p_id].admission_day = d;
-                patients[p_id].assigned_ot = current_ot_index;
+                patients[p_id].assigned_ot = current_ot->id;
                 patients[p_id].assigned_room_no = r_id;
                 patients[p_id].is_admitted = 1;
                 surgeon[s_id].time_left[d] -= patients[p_id].surgery_duration;
-                ot[current_ot_index].time_left[d] -= patients[p_id].surgery_duration;
+                ot[current_ot->id].time_left[d] -= patients[p_id].surgery_duration;
+                ot_days_data_arr[d][current_ot_index].time_left[d] -= patients[p_id].surgery_duration;
                 break;
             }
         }
@@ -210,17 +212,17 @@ int admitPatientsNewGA(int** room_gender_map, PriorityQueue* pq, int* chromosome
         if (patients[i].admission_day == -1 && patients[i].mandatory) {
             unscheduled_mandatory++;
             unscheduled_mandatory_patients[patients[i].id] = 1;
+            continue;
         }
-        else if (patients[i].mandatory) {
+        if (patients[i].mandatory) {
             scheduled_mandatory++;
             scheduled_mandatory_patients[patients[i].id] = 1;
+            continue;
         }
-    }
-
-    for (i = 0; i < num_patients; i++) {
         if (patients[i].admission_day != -1 && !patients[i].mandatory) {
             scheduled_optional++;
             scheduled_optional_patients[patients[i].id] = 1;
+            continue;
         }
     }
 
@@ -270,7 +272,7 @@ int findSuitableRoomNewGA(int p_id, int d) {
         // If incompatible, skip this room
         if (flag) continue;
 
-		for (j = d; j < d + patients[p_id].length_of_stay; ++j) {
+		for (j = d; j < d + patients[p_id].length_of_stay && j < days; ++j) {
 			if (room[r_id].cap <= room[r_id].num_patients_info[j]) {
 				flag = 1;
 				break;
@@ -313,16 +315,11 @@ int findSuitableRoomNewGA(int p_id, int d) {
 
 //-------------------------------------------------------BELOW: FUNCTION DEFINITIONS FOR GA-----------------------------------------------------------
 
-// all taken from ihtc_ga.c
-extern void orderCrossover(void);
-extern void swapMutation(void);
 extern void swapGenes(int, int, int);
-extern void generateNewChromosome(int);
-extern void initDataStructures(void);
-extern void freeDataStructures(void);
-extern void printPopulation(void);
 
 void applyGeneticAlgorithmNewGA(PriorityQueue* pq);
+void initDataStructuresNewGA(void);
+void freeDataStructuresNewGA(void);
 void evaluateFitnessScoreNewGA(int* chromosome, PriorityQueue* pq);
 void crossoverTournamentSelectionNewGA(void);
 void mutationTournamentSelectionNewGA(void);
@@ -332,9 +329,220 @@ void crossoverElitismViolations(void);
 void mutationElitismCost(void);
 void crossoverElitismCost(void);
 void minimizeCost(void); // returns the minimized cost
-const int NUM_COST_ITER = 1000000;
+void orderCrossoverNewGA(void);
+void printPopulationNewGA(void);
+void swapMutationNewGA(void);
+void generateNewChromosomeNewGA(int chromo_num);
+
+int findViolations(void);
+int findCost(void);
+int patient_delay();
+int elective_unscheduled_patients();
+int open_operating_theatre();
+int room_age_mix();
+int skill_level_mix();
+
+const long int NUM_COST_ITER = 10000000;
+const int POPULATION_SIZE = 1000, NUM_ITER = 10000, CONVERGENCE_STOPPING_CRITERION = 100;
+int CHROMOSOME_SIZE_NEW_GA;
+int** POPULATION, * G_BEST, size;
+int** CROSSOVER_OFFSPRING_STORAGE_PLACE, ** CROSSOVER_PARENT_STORAGE_PLACE;
+int* MUTATED_OFFSPRING_STORAGE_PLACE, * MUTATE_PARENT_STORAGE_PLACE;
 
 //-------------------------------------------------------ABOVE: FUNCTION DEFINITIONS FOR GA-----------------------------------------------------------
+
+void printPopulationNewGA(void)
+{   int i, j;
+    for (i = 0; i < POPULATION_SIZE; ++i) {
+        printf("Chromosome %d: ", i + 1);
+        for (j = 0; j < CHROMOSOME_SIZE_NEW_GA; ++j)
+            printf("%d ", POPULATION[i][j]);
+        putchar('\n');
+    }
+}
+
+void orderCrossoverNewGA(void) {
+    int r1, r2, i, k, m;
+    int max = 0;
+
+    for (int i = 0; i < CHROMOSOME_SIZE_NEW_GA; i++) {
+        if (max < CROSSOVER_PARENT_STORAGE_PLACE[0][i])
+            max = CROSSOVER_PARENT_STORAGE_PLACE[0][i];
+        if (max < CROSSOVER_PARENT_STORAGE_PLACE[1][i])
+            max = CROSSOVER_PARENT_STORAGE_PLACE[1][i];
+    }
+
+    bool* visited1 = (bool*)calloc(max + 1, sizeof(bool));
+    bool* visited2 = (bool*)calloc(max + 1, sizeof(bool));
+
+    if (!visited1 || !visited2) {
+        printf("Memory allocation failed!\n");
+        exit(1);
+    }
+
+    do {
+        r1 = rand() % CHROMOSOME_SIZE_NEW_GA;
+        r2 = rand() % CHROMOSOME_SIZE_NEW_GA;
+    } while (r1 == r2);
+
+    if (r1 > r2) {
+        int temp = r1;
+        r1 = r2;
+        r2 = temp;
+    }
+
+    for (i = 0; i < CHROMOSOME_SIZE_NEW_GA; i++) {
+        CROSSOVER_OFFSPRING_STORAGE_PLACE[0][i] = -1;
+        CROSSOVER_OFFSPRING_STORAGE_PLACE[1][i] = -1;
+    }
+
+    for (i = r1; i <= r2; i++) {
+        int gene1 = CROSSOVER_PARENT_STORAGE_PLACE[0][i];
+        int gene2 = CROSSOVER_PARENT_STORAGE_PLACE[1][i];
+
+        CROSSOVER_OFFSPRING_STORAGE_PLACE[0][i] = gene1;
+        CROSSOVER_OFFSPRING_STORAGE_PLACE[1][i] = gene2;
+
+        visited1[gene1] = true;
+        visited2[gene2] = true;
+    }
+
+    k = (r2 + 1) % CHROMOSOME_SIZE_NEW_GA;
+    m = k;
+
+    for (i = 0; i < CHROMOSOME_SIZE_NEW_GA; i++) {
+        int index = (r2 + 1 + i) % CHROMOSOME_SIZE_NEW_GA;
+
+        int gene1 = CROSSOVER_PARENT_STORAGE_PLACE[1][index];
+        if (!visited1[gene1]) {
+            while (CROSSOVER_OFFSPRING_STORAGE_PLACE[0][k] != -1) {
+                k = (k + 1) % CHROMOSOME_SIZE_NEW_GA;
+            }
+            CROSSOVER_OFFSPRING_STORAGE_PLACE[0][k] = gene1;
+            visited1[gene1] = true;
+        }
+
+        int gene2 = CROSSOVER_PARENT_STORAGE_PLACE[0][index];
+        if (!visited2[gene2]) {
+            while (CROSSOVER_OFFSPRING_STORAGE_PLACE[1][m] != -1) {
+                m = (m + 1) % CHROMOSOME_SIZE_NEW_GA;
+            }
+            CROSSOVER_OFFSPRING_STORAGE_PLACE[1][m] = gene2;
+            visited2[gene2] = true;
+        }
+    }
+
+	CROSSOVER_OFFSPRING_STORAGE_PLACE[0][CHROMOSOME_SIZE_NEW_GA] = -1;
+	CROSSOVER_OFFSPRING_STORAGE_PLACE[0][CHROMOSOME_SIZE_NEW_GA+1] = -1;
+    CROSSOVER_OFFSPRING_STORAGE_PLACE[1][CHROMOSOME_SIZE_NEW_GA] = -1;
+    CROSSOVER_OFFSPRING_STORAGE_PLACE[1][CHROMOSOME_SIZE_NEW_GA+1] = -1;
+
+    free(visited1);
+    free(visited2);
+}
+
+void swapMutationNewGA(void)
+{   // take the offspring from MUTATED_OFFSPRING_STORAGE_PLACE and mutate it using SWAP MUTATION method
+    int r1, r2;
+    for (int i = 0; i < CHROMOSOME_SIZE_NEW_GA; i++) {
+        MUTATED_OFFSPRING_STORAGE_PLACE[i] = MUTATE_PARENT_STORAGE_PLACE[i];
+    }
+
+    do {
+        r1 = rand() % CHROMOSOME_SIZE_NEW_GA;
+        r2 = rand() % CHROMOSOME_SIZE_NEW_GA;
+    } while (r1 == r2);
+
+    MUTATED_OFFSPRING_STORAGE_PLACE[r1] += MUTATED_OFFSPRING_STORAGE_PLACE[r2];
+    MUTATED_OFFSPRING_STORAGE_PLACE[r2] = MUTATED_OFFSPRING_STORAGE_PLACE[r1] - MUTATED_OFFSPRING_STORAGE_PLACE[r2];
+    MUTATED_OFFSPRING_STORAGE_PLACE[r1] -= MUTATED_OFFSPRING_STORAGE_PLACE[r2];
+
+	MUTATED_OFFSPRING_STORAGE_PLACE[CHROMOSOME_SIZE_NEW_GA] = -1;
+	MUTATED_OFFSPRING_STORAGE_PLACE[CHROMOSOME_SIZE_NEW_GA + 1] = -1;
+}
+
+void generateNewChromosomeNewGA(int chromo_num)
+{
+    int j, r1, r2;
+
+    // copy all the genes from (chrmo_num-1)th chrmosome to (chromo_num)th chromosome
+    for (j = 0; j < CHROMOSOME_SIZE_NEW_GA; ++j)
+        POPULATION[chromo_num][j] = POPULATION[chromo_num - 1][j];
+
+    for (j = 0; j < CHROMOSOME_SIZE_NEW_GA; ++j) {
+        do {
+            r1 = rand() % (CHROMOSOME_SIZE_NEW_GA);
+            r2 = rand() % (CHROMOSOME_SIZE_NEW_GA);
+        } while (r1 == r2);
+
+        swapGenes(chromo_num, r1, r2);
+    }
+}
+
+void initDataStructuresNewGA(void)
+{
+    int i;
+
+    // Allocate memory for single arrays
+    MUTATED_OFFSPRING_STORAGE_PLACE = (int*)calloc(CHROMOSOME_SIZE_NEW_GA + 2, sizeof(int));
+    ASSERT(MUTATED_OFFSPRING_STORAGE_PLACE, "Dynamic Memory Allocation Error for MUTATED_OFFSPRING_STORAGE_PLACE");
+
+    MUTATE_PARENT_STORAGE_PLACE = (int*)calloc(CHROMOSOME_SIZE_NEW_GA + 2, sizeof(int));
+    ASSERT(MUTATE_PARENT_STORAGE_PLACE, "Dynamic Memory Allocation Error for MUTATE_PARENT_STORAGE_PLACE");
+
+    G_BEST = (int*)calloc(CHROMOSOME_SIZE_NEW_GA + 2, sizeof(int));
+    ASSERT(G_BEST, "Dynamic Memory Allocation Error for G_BEST");
+
+    // Allocate memory for crossover offspring storage
+    CROSSOVER_OFFSPRING_STORAGE_PLACE = (int**)calloc(2, sizeof(int*));
+    ASSERT(CROSSOVER_OFFSPRING_STORAGE_PLACE, "Dynamic Memory Allocation Error for CROSSOVER_OFFSPRING_STORAGE_PLACE");
+
+    for (i = 0; i < 2; ++i) {
+        CROSSOVER_OFFSPRING_STORAGE_PLACE[i] = (int*)calloc(CHROMOSOME_SIZE_NEW_GA + 2, sizeof(int));
+        ASSERT(CROSSOVER_OFFSPRING_STORAGE_PLACE[i], "Dynamic Memory Allocation Error for CROSSOVER_OFFSPRING_STORAGE_PLACE[i]");
+    }
+
+    // Allocate memory for crossover parent storage
+    CROSSOVER_PARENT_STORAGE_PLACE = (int**)calloc(2, sizeof(int*));
+    ASSERT(CROSSOVER_PARENT_STORAGE_PLACE, "Dynamic Memory Allocation Error for CROSSOVER_PARENT_STORAGE_PLACE");
+
+    for (i = 0; i < 2; ++i) {
+        CROSSOVER_PARENT_STORAGE_PLACE[i] = (int*)calloc(CHROMOSOME_SIZE_NEW_GA + 2, sizeof(int));
+        ASSERT(CROSSOVER_PARENT_STORAGE_PLACE[i], "Dynamic Memory Allocation Error for CROSSOVER_PARENT_STORAGE_PLACE[i]");
+    }
+
+    POPULATION = (int**)calloc(POPULATION_SIZE, sizeof(int*));
+    ASSERT(POPULATION, "Dynamic Memory Allocation Error for POPULATION");
+
+    for (i = 0; i < POPULATION_SIZE; ++i) {
+        POPULATION[i] = (int*)calloc(CHROMOSOME_SIZE_NEW_GA + 2, sizeof(int));
+        ASSERT(POPULATION[i], "Dynamic Memory Allocation Error for a CHROMOSOME");
+
+        // Set last column to -1 if needed
+        POPULATION[i][CHROMOSOME_SIZE_NEW_GA] = -1;
+        POPULATION[i][CHROMOSOME_SIZE_NEW_GA+1] = -1;
+    }
+}
+
+void freeDataStructuresNewGA(void)
+{   int i;
+    free(MUTATED_OFFSPRING_STORAGE_PLACE);
+    free(MUTATED_OFFSPRING_STORAGE_PLACE);
+
+    for (i = 0; i < 2; ++i)
+        free(CROSSOVER_OFFSPRING_STORAGE_PLACE[i]);
+    free(CROSSOVER_OFFSPRING_STORAGE_PLACE);
+
+    for (i = 0; i < 2; ++i)
+        free(CROSSOVER_PARENT_STORAGE_PLACE[i]);
+    free(CROSSOVER_PARENT_STORAGE_PLACE);
+
+    free(G_BEST);
+
+    for (i = 0; i < POPULATION_SIZE; ++i)
+        free(POPULATION[i]);
+    free(POPULATION);
+}
 
 void applyGeneticAlgorithmNewGA(PriorityQueue* pq)
 {   /*
@@ -392,7 +600,7 @@ void applyGeneticAlgorithmNewGA(PriorityQueue* pq)
     for (i = 0; i <= NUM_ITER && g_best; ++i) {
         if ((rand() / (float)RAND_MAX) <= p_c) {
             crossoverTournamentSelectionNewGA();
-            orderCrossover();
+            orderCrossoverNewGA();
 
             for (j = 0; j < 2; ++j)
                 evaluateFitnessScoreNewGA(CROSSOVER_OFFSPRING_STORAGE_PLACE[j], pq);
@@ -403,7 +611,7 @@ void applyGeneticAlgorithmNewGA(PriorityQueue* pq)
         }
         else {
             mutationTournamentSelectionNewGA();
-            swapMutation();
+            swapMutationNewGA();
             evaluateFitnessScoreNewGA(MUTATED_OFFSPRING_STORAGE_PLACE, pq);
             mutationElitismViolations();
             if (MUTATED_OFFSPRING_STORAGE_PLACE[CHROMOSOME_SIZE_NEW_GA] <= G_BEST[CHROMOSOME_SIZE_NEW_GA])
@@ -453,9 +661,9 @@ void minimizeCost(PriorityQueue* pq)
     TEMP_G_BEST = (int *) calloc (CHROMOSOME_SIZE_NEW_GA+2, sizeof(int));
     memcpy(TEMP_G_BEST, G_BEST, (CHROMOSOME_SIZE_NEW_GA+2) * sizeof(int));
     TEMP_G_BEST[CHROMOSOME_SIZE_NEW_GA] = -1;
-    TEMP_G_BEST[CHROMOSOME_SIZE_NEW_GA] = -1;
+    TEMP_G_BEST[CHROMOSOME_SIZE_NEW_GA+1] = -1;
 
-    for (i=0; i<NUM_COST_ITER; ++i) {
+    for (i=0; i<NUM_COST_ITER && G_BEST[CHROMOSOME_SIZE_NEW_GA+1]; ++i) {
         /*
         1. find 2 random numbers from [0, chromosome size)
         2. swap the associated genes in the G_BEST chromosome
@@ -468,9 +676,11 @@ void minimizeCost(PriorityQueue* pq)
             r1 = rand() % (CHROMOSOME_SIZE_NEW_GA);
             r2 = rand() % (CHROMOSOME_SIZE_NEW_GA);
         } while (r1 == r2);
+
         TEMP_G_BEST[r1] += TEMP_G_BEST[r2];
         TEMP_G_BEST[r2] = TEMP_G_BEST[r1] - TEMP_G_BEST[r2];
         TEMP_G_BEST[r1] -= TEMP_G_BEST[r2];
+
         evaluateFitnessScoreNewGA(TEMP_G_BEST, pq);
         if (TEMP_G_BEST[CHROMOSOME_SIZE_NEW_GA]) {
             memcpy(TEMP_G_BEST, G_BEST, (CHROMOSOME_SIZE_NEW_GA+2) * sizeof(int));
@@ -486,7 +696,6 @@ void minimizeCost(PriorityQueue* pq)
     */
 }
 
-// To be implemented-----------------------------------------------------------------------------------------------------------------------------
 int findViolations(void) {
     // add validator code here
     return 0;
@@ -780,12 +989,17 @@ void mutationElitismCost(void)
 
 void generatePopulationNewGA(void)
 {   int i, j, k;
+    /*
     for (j = 0; j < mandatory_count; ++j)
         POPULATION[0][j] = mandatory_patients[j]->id;
     for (i = j; i < CHROMOSOME_SIZE_NEW_GA; ++i)
         POPULATION[0][i] = optional_patients[i - j]->id;
+    */
+    for (i = 0; i < num_patients; ++i)
+        POPULATION[0][i] = patients[i]->id;
+
     for (i = 1; i < POPULATION_SIZE; ++i)
-        generateNewChromosome(i);
+        generateNewChromosomeNewGA(i);
 }
 
 //---------------------------------------------------------ABOVE: GENETIC ALGORITHM-------------------------------------------------------------
@@ -801,7 +1015,7 @@ int main(void) {
 
     CHROMOSOME_SIZE_NEW_GA = size;
 
-    initDataStructures();
+    initDataStructuresNewGA();
     initialize_room_gender_map(&room_gender_map);
     //initPQ(pq, 20); // InitalCapacity = 20. It'll resizePQ itself if we try to insert more HeapNodes in it.
     populate_room_gender_map(&room_gender_map);
@@ -819,8 +1033,6 @@ int main(void) {
     printf("\nBest Fitness Score: %d\n", G_BEST[CHROMOSOME_SIZE_NEW_GA]);
     printf("\nBest optional admitted: %d\n", G_BEST[CHROMOSOME_SIZE_NEW_GA + 1]);
 
-    //print_rooms();
-//    freeDataStructures();
     create_dm_nurses_availability();
     sorting_nurse_id_max_load();
     create_3d_array();
@@ -843,7 +1055,7 @@ int main(void) {
     free_ots();
     free_rooms();
     free_nurses();
-    freeDataStructures();
+    freeDataStructuresNewGA();
     free(weights);
 
     return 0;
