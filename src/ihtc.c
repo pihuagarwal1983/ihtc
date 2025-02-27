@@ -576,6 +576,9 @@ void parse_rooms(cJSON* room_array) {
         if (!item) continue;
         room[i].nurses_alloted = (int*)calloc(1, sizeof(int));
         room[i].num_patients_info = (int*)calloc(days, sizeof(int));
+        room[i].gender_days_info = (gender*)calloc(days, sizeof(gender));
+        for (j=0; j<days; ++j)
+            room[i].gender_days_info[j] = -1;
         cJSON* id_json = cJSON_GetObjectItem(item, "id");
         // room[i].occupied_cap = -1;
         if (id_json && cJSON_IsString(id_json)) room[i].id = str2int(id_json->valuestring);
@@ -586,7 +589,6 @@ void parse_rooms(cJSON* room_array) {
         cJSON* capacity_json = cJSON_GetObjectItem(item, "capacity");
         if (capacity_json && cJSON_IsNumber(capacity_json)) room[i].cap = capacity_json->valueint;
         else printf("Missing or invalid capacity for room at index %d. Defaulting to 0.\n", i);
-        room[i].gen = -1;
     }
 }
 

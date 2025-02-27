@@ -169,9 +169,9 @@ int admitPatientsNewGA(int** room_gender_map, PriorityQueue* pq, int* chromosome
 
     // printf("\nChromosome:%d\t", k);
 
-    int* unscheduled_mandatory_patients = (int*)calloc(num_patients + 1, sizeof(int));
-    int* scheduled_optional_patients = (int*)calloc(num_patients + 1, sizeof(int));
-    int* scheduled_mandatory_patients = (int*)calloc(num_patients + 1, sizeof(int));
+    int* unscheduled_mandatory_patients = (int*)calloc(num_patients, sizeof(int));
+    int* scheduled_optional_patients = (int*)calloc(num_patients, sizeof(int));
+    int* scheduled_mandatory_patients = (int*)calloc(num_patients, sizeof(int));
 
     // ------------------------------------------------------------START SCHEDULING----------------------------------------------------------------
 
@@ -253,13 +253,16 @@ void updateResources(int d) {
 
 int findSuitableRoomNewGA(int p_id, int d) {
     // Returns a room_id OR -1 if no suitable room is found
-    int flag = 0, j, r_id = -1;
-    gender g = patients[p_id].gen;
+    int flag = 0, j, r_id = -1, room_to_be_assigned = -1;
+    gender g = patients[p_id].gen, r_gen;
     char* age = patients[p_id].age_group;
 
     for (int i = 0; i < num_rooms; i++) {
         flag = 0;
         r_id = room[i].id;
+        r_gen = room[i].gender_days_info[d];
+        if (r_gen != g) continue;
+
         // Check if room is full
         if ((room[r_id].cap <= room[r_id].num_patients_info[d]) continue;
         // Check for incompatible rooms
@@ -269,9 +272,7 @@ int findSuitableRoomNewGA(int p_id, int d) {
                 break;
             }
         }
-        // If incompatible, skip this room
         if (flag) continue;
-
 		for (j = d; j < d + patients[p_id].length_of_stay && j < days; ++j) {
 			if (room[r_id].cap <= room[r_id].num_patients_info[j]) {
 				flag = 1;
@@ -279,7 +280,42 @@ int findSuitableRoomNewGA(int p_id, int d) {
 			}
 		}
 		if (flag) continue;
-		return r_id; // Found a suitable room
+		room_to_be_assigned = r_id;
+		return room_to_be_assigned; // Found a suitable room
+    }
+
+    // check in empty rooms
+    if (room_to_be_assigned == -1 || i == num_rooms) {
+        for (int i = 0; i < num_rooms; i++) {
+        flag = 0;
+        r_id = room[i].id;
+        r_gen = room[i].gender_days_info[d];
+        if (r_gen != -1)
+            continue;
+
+        // Check if room is full
+        if ((room[r_id].cap <= room[r_id].num_patients_info[d]) continue;
+        // Check for incompatible rooms
+        for (j = 0; j < patients[p_id].num_incompatible_rooms; j++) {
+            if (r_id == patients[p_id].incompatible_room_ids[j]) {
+                flag = 1; // Mark as incompatible
+                break;
+            }
+        }
+        if (flag) continue;
+		for (j = d; j < d + patients[p_id].length_of_stay && j < days; ++j) {
+			if (room[r_id].cap <= room[r_id].num_patients_info[j]) {
+				flag = 1;
+				printf("Dikkat hai re baba!!");
+				exit(EXIt_FAILURE);
+				break;
+			}
+		}
+        if (flag) continue;
+            room_to_be_assigned = r_id;
+            room[room_to_be_assigned].gender_days_info[d] = g;
+            return room_to_be_assigned; // Found a suitable room
+        }
     }
     // look in empty rooms
     /*

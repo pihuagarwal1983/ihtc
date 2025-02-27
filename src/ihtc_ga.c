@@ -867,14 +867,9 @@ void generateNewChromosome(int chromo_num)
 }
 
 void generatePopulation(void)
-{
-    int i, j;
-
-    // Copy mandatory patients' IDs into the first chromosome
-    for (j = 0; j < CHROMOSOME_SIZE; ++j)
-        POPULATION[0][j] = mandatory_patients[j]->id;
-
-    // Generate new chromosomes for the rest
+{   int i;
+    for (i = 0; i < num_patients; ++i)
+        POPULATION[0][i] = patients[i]->id;
     for (i = 1; i < POPULATION_SIZE; ++i)
         generateNewChromosome(i);
 }
@@ -1122,7 +1117,6 @@ void initDataStructures(void)
     }
 
 }
-
 
 void freeDataStructures(void)
 {
