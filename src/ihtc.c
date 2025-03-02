@@ -160,6 +160,8 @@ void parse_occupants(cJSON* occupants_array) {
             occupants[i].skill_level_required = NULL;
         }
         occupants[i].is_admitted = 1;
+        occupants[i].num_nurses_alloted = 0;
+        occupants[i].nurses_alloted = (int*)calloc(2, sizeof(int));
     }
 }
 
@@ -366,6 +368,8 @@ void parse_patients(cJSON* patients_array) {
             printf("Missing or invalid skill_level_required for patient at index %d.\n", i);
         }
         patients[i].is_admitted = 0;
+        patients[i].num_nurses_allotted = 0;
+        patients[i].nurses_allotted = (int*)calloc(2, sizeof(int));
     }
     // Print counts for verification
     // printf("Number of mandatory patients: %d\n", mandatory_count);
@@ -2907,6 +2911,119 @@ void initialize_room_shift_nurse() {
 //}
 
 
+
+//void nurse_assignments() {
+//    for (int i = 0; i < days; i++) {
+//        for (int j = 0; j < num_rooms; j++) {
+//            for (int k = 0; k < 3; k++) {
+//                int m = 0;
+//
+//                // Skip if the room has no workload but requires a certain skill level
+//                if (rooms_requirement[j][3 * i + k].load_sum == 0 && rooms_requirement[j][3 * i + k].max_skill_req)
+//                    break;
+//
+//                Nurses** arr = dm_nurses_availability[i * 3 + k];
+//                int arr_size = current_size_dm_nurse[i * 3 + k];
+//
+//                if (room[j].nurses_alloted == NULL) {
+//                    room[j].nurses_alloted = NULL;
+//                    room[j].length_of_nurses_alloted = 0;
+//                }
+//
+//                Nurses* nurse_to_be_assigned = NULL;
+//
+//                // **Step 1: Prioritize Nurses Who Have Already Attended Patients in This Room**
+//                for (m = 0; m < arr_size; m++) {
+//                    Nurses* candidate = arr[m];
+//
+//                    // Check if this nurse has already been assigned to patients in this room
+//                    bool has_previous_patient = false;
+//                    for (int p = 0; p < room[j].length_of_nurses_alloted; p++) {
+//                        if (room[j].nurses_alloted[p] == candidate->id) {
+//                            has_previous_patient = true;
+//                            break;
+//                        }
+//                    }
+//
+//                    // If this nurse was previously assigned and has enough load capacity, choose them
+//                    if (has_previous_patient && max_load_updated[candidate->id][3 * i + k] >= rooms_requirement[j][3 * i + k].load_sum) {
+//                        nurse_to_be_assigned = candidate;
+//                        break;
+//                    }
+//                }
+//
+//                // **Step 2: If No Previous Nurse is Suitable, Assign a New One**
+//                if (nurse_to_be_assigned == NULL) {
+//                    for (m = 0; m < arr_size; m++) {
+//                        if (max_load_updated[arr[m]->id][3 * i + k] >= rooms_requirement[j][3 * i + k].load_sum) {
+//                            nurse_to_be_assigned = arr[m];
+//                            break;
+//                        }
+//                    }
+//                }
+//
+//                // **Step 3: If Still No Suitable Nurse, Pick the One with the Least Deficit**
+//                if (nurse_to_be_assigned == NULL) {
+//                    int min_deficit = INT_MAX;
+//                    for (m = 0; m < arr_size; m++) {
+//                        int deficit = rooms_requirement[j][3 * i + k].load_sum - max_load_updated[arr[m]->id][3 * i + k];
+//                        if (deficit < min_deficit) {
+//                            min_deficit = deficit;
+//                            nurse_to_be_assigned = arr[m];
+//                        }
+//                    }
+//                }
+//
+//                // **Step 4: Assign Nurse to the Room**
+//                if (nurse_to_be_assigned != NULL) {
+//                    int* temp = (int*)realloc(room[j].nurses_alloted, (room[j].length_of_nurses_alloted + 1) * sizeof(int));
+//                    if (temp == NULL) {
+//                        perror("Memory allocation failed for nurses_alloted");
+//                        exit(EXIT_FAILURE);
+//                    }
+//
+//                    room[j].nurses_alloted = temp;
+//                    room[j].nurses_alloted[room[j].length_of_nurses_alloted++] = nurse_to_be_assigned->id;
+//                    max_load_updated[nurse_to_be_assigned->id][3 * i + k] -= rooms_requirement[j][3 * i + k].load_sum;
+//                    room_shift_nurse[j][3 * i + k] = nurse_to_be_assigned->id;
+//
+//                    // **Step 5: Assign Room to Nurse’s Shift Without Duplicates**
+//                    for (int z = 0; z < nurse_to_be_assigned->num_shifts; z++) {
+//                        if (nurse_to_be_assigned->shift[z].day != i) {
+//                            continue;
+//                        }
+//
+//                        bool already_assigned = false;
+//                        for (int p = 0; p < nurse_to_be_assigned->shift[z].num_rooms; p++) {
+//                            if (nurse_to_be_assigned->shift[z].rooms[p] == room[j].id) {
+//                                already_assigned = true;
+//                                break;
+//                            }
+//                        }
+//
+//                        if (!already_assigned) {
+//                            int* temp_room = (int*)realloc(nurse_to_be_assigned->shift[z].rooms,
+//                                (nurse_to_be_assigned->shift[z].num_rooms + 1) * sizeof(int));
+//                            if (temp_room) {
+//                                nurse_to_be_assigned->shift[z].rooms = temp_room;
+//                                nurse_to_be_assigned->shift[z].rooms[nurse_to_be_assigned->shift[z].num_rooms++] = room[j].id;
+//                            }
+//                            else {
+//                                fprintf(stderr, "Memory allocation error for nurse shift rooms.\n");
+//                                exit(EXIT_FAILURE);
+//                            }
+//                        }
+//                    }
+//                }
+//                else {
+//                    fprintf(stderr, "No valid nurse available for Room %d, Shift %d\n", j, 3 * i + k);
+//                }
+//            }
+//        }
+//    }
+//}
+
+
 //.........INCORPORATING EXCESSIVE NURSE LOAD......//
 void nurse_assignments() {
     for (int i = 0; i < days; i++) {
@@ -2976,6 +3093,28 @@ void nurse_assignments() {
                         room[j].nurses_alloted[room[j].length_of_nurses_alloted++] = nurse_id;
                         max_load_updated[nurse_id][3 * i + k] -= rooms_requirement[j][3 * i + k].load_sum;
                         room_shift_nurse[j][3 * i + k] = nurse_id;
+                        for (int k = 0; k < size_of_room_schedule[j][i]; k++) {
+                            int id = str2int(room_schedule[j][i][k]);
+                            char* p = room_schedule[j][i][k];
+                            if (p[0] == 'p') {
+                                int new_size_nurses_patients = patients[id].num_nurses_allotted + 1;
+                                int *temp_nurse_alloted = (int*)realloc(patients[id].nurses_allotted, new_size_nurses_patients*sizeof(int));
+                                if (temp_nurse_alloted) {
+                                    patients[id].nurses_allotted = temp_nurse_alloted;
+                                    patients[id].nurses_allotted[patients[id].num_nurses_allotted] = nurse_id;
+                                    patients[id].num_nurses_allotted++;
+                                }
+                            }
+                            else if (p[0] == 'o') {
+                                int new_size_occupants = occupants[id].num_nurses_alloted + 1;
+                                int *temp_nurse_alloted = (int*)realloc(occupants[id].nurses_alloted, new_size_occupants * sizeof(int));
+                                if (temp_nurse_alloted) {
+                                    occupants[id].nurses_alloted = temp_nurse_alloted;
+                                    occupants[id].nurses_alloted[occupants[id].num_nurses_alloted] = nurse_id;
+                                    occupants[id].num_nurses_alloted++;
+                                }
+                            }
+                        }
 
                         // Assign room to nurse's shift, ensuring no duplicates
                         for (int z = 0; z < nurse_to_be_assigned->num_shifts; z++) {
@@ -2996,7 +3135,7 @@ void nurse_assignments() {
                             if (!already_assigned) {
                                 int new_size = nurse_to_be_assigned->shift[z].num_rooms + 1;
                                 int* temp_room = (int*)realloc(nurse_to_be_assigned->shift[z].rooms, new_size * sizeof(int));
-                                
+
                                 if (temp_room) {
                                     nurse_to_be_assigned->shift[z].rooms = temp_room;
                                     nurse_to_be_assigned->shift[z].rooms[nurse_to_be_assigned->shift[z].num_rooms] = room[j].id;
@@ -3018,6 +3157,123 @@ void nurse_assignments() {
         }
     }
 }
+
+
+//void nurse_assignments() {
+//    for (int i = 0; i < days; i++) {
+//        for (int j = 0; j < num_rooms; j++) {
+//            for (int k = 0; k < 3; k++) {
+//                int m = 0;
+//
+//                // Skip if room has no load but requires a certain skill level
+//                if (rooms_requirement[j][3 * i + k].load_sum == 0 && rooms_requirement[j][3 * i + k].max_skill_req)
+//                    break;
+//
+//                Nurses** arr = dm_nurses_availability[i * 3 + k];
+//                int arr_size = current_size_dm_nurse[i * 3 + k];
+//
+//                if (room[j].nurses_alloted == NULL) {
+//                    room[j].nurses_alloted = NULL;
+//                    room[j].length_of_nurses_alloted = 0;
+//                }
+//
+//                Nurses* nurse_to_be_assigned = NULL;
+//
+//                // **Step 1: Check if any patient in the room has a previously assigned nurse**
+//                for (int p = 0; p < size_of_room_schedule[j][i]; p++) {
+//                    int p_id = str2int(room_schedule[j][i][p]);
+//                    int prev_nurse_id = room[j].nurses_alloted[];
+//
+//                    if (prev_nurse_id != -1) { // If a nurse was assigned before
+//                        for (m = 0; m < arr_size; m++) {
+//                            if (arr[m]->id == prev_nurse_id && max_load_updated[arr[m]->id][3 * i + k] >= rooms_requirement[j][3 * i + k].load_sum) {
+//                                nurse_to_be_assigned = arr[m]; // Prioritize the same nurse
+//                                break;
+//                            }
+//                        }
+//                    }
+//                    if (nurse_to_be_assigned) break; // Found a suitable previous nurse, stop searching
+//                }
+//
+//                // **Step 2: If no previously assigned nurse is available, find a new one**
+//                if (nurse_to_be_assigned == NULL) {
+//                    for (m = 0; m < arr_size; m++) {
+//                        if (max_load_updated[arr[m]->id][3 * i + k] >= rooms_requirement[j][3 * i + k].load_sum) {
+//                            nurse_to_be_assigned = arr[m]; // Found a suitable nurse
+//                            break;
+//                        }
+//                    }
+//                }
+//
+//                // **Step 3: If no nurse meets the requirement, find the one with the smallest deficit**
+//                if (nurse_to_be_assigned == NULL) {
+//                    int min_deficit = INT_MAX;
+//                    for (m = 0; m < arr_size; m++) {
+//                        int deficit = rooms_requirement[j][3 * i + k].load_sum - max_load_updated[arr[m]->id][3 * i + k];
+//                        if (deficit < min_deficit) {
+//                            min_deficit = deficit;
+//                            nurse_to_be_assigned = arr[m];
+//                        }
+//                    }
+//                }
+//
+//                // **Step 4: Assign the nurse and update nurse_alloted in patients**
+//                if (nurse_to_be_assigned != NULL) {
+//                    int* temp = (int*)realloc(room[j].nurses_alloted, (room[j].length_of_nurses_alloted + 1) * sizeof(int));
+//                    if (temp == NULL) {
+//                        perror("Memory allocation failed for nurses_alloted");
+//                        exit(EXIT_FAILURE);
+//                    }
+//
+//                    room[j].nurses_alloted = temp;
+//                    room[j].nurses_alloted[room[j].length_of_nurses_alloted++] = nurse_to_be_assigned->id;
+//                    max_load_updated[nurse_to_be_assigned->id][3 * i + k] -= rooms_requirement[j][3 * i + k].load_sum;
+//                    room_shift_nurse[j][3 * i + k] = nurse_to_be_assigned->id;
+//
+//                    // **Update `nurse_alloted` for all patients in the room**
+//                    for (int p = 0; p < room[j].num_patients; p++) {
+//                        room[j].patients[p].nurse_alloted = nurse_to_be_assigned->id;
+//                    }
+//
+//                    // **Step 5: Assign room to nurse’s shift (avoiding duplicates)**
+//                    for (int z = 0; z < nurse_to_be_assigned->num_shifts; z++) {
+//                        if (nurse_to_be_assigned->shift[z].day != i) continue;
+//
+//                        bool already_assigned = false;
+//                        for (int p = 0; p < nurse_to_be_assigned->shift[z].num_rooms; p++) {
+//                            if (nurse_to_be_assigned->shift[z].rooms[p] == room[j].id) {
+//                                already_assigned = true;
+//                                break;
+//                            }
+//                        }
+//
+//                        if (!already_assigned) {
+//                            int* temp_room = NULL;
+//                            int new_size = nurse_to_be_assigned->shift[z].num_rooms + 1;
+//                            temp_room = (nurse_to_be_assigned->shift[z].rooms) ?
+//                                (int*)realloc(nurse_to_be_assigned->shift[z].rooms, new_size * sizeof(int)) :
+//                                (int*)calloc(new_size, sizeof(int));
+//
+//                            if (temp_room) {
+//                                nurse_to_be_assigned->shift[z].rooms = temp_room;
+//                                nurse_to_be_assigned->shift[z].rooms[nurse_to_be_assigned->shift[z].num_rooms] = room[j].id;
+//                                nurse_to_be_assigned->shift[z].num_rooms++;
+//                            }
+//                            else {
+//                                fprintf(stderr, "Memory allocation error for nurse shift rooms.\n");
+//                                exit(EXIT_FAILURE);
+//                            }
+//                        }
+//                    }
+//                }
+//                else {
+//                    fprintf(stderr, "No valid nurse available for Room %d, Shift %d\n", j, 3 * i + k);
+//                }
+//            }
+//        }
+//    }
+//}
+
 
 //.....first logic......//
 //void nurse_assignments() {
@@ -3166,112 +3422,112 @@ void nurse_assignments() {
 
 //---------------------------------------------------------------------------------------------------
 
-void nurse_assignment_new() {
-    int n_shifts = days * 3, i, j, n_id, temp, k, s;
-    Nurses* nurse_to_be_assigned = NULL;
-    int** nurse_shift_data = (int**)calloc(num_rooms, sizeof(int*));
-    int** nurse_assigned_to_room = (int**)calloc(num_rooms, sizeof(int*));
-    for (i = 0; i < num_rooms; i++) {
-        nurse_assigned_to_room[i] = (int*)calloc(num_nurses, sizeof(int));
-        nurse_shift_data[i] = (int*)calloc(n_shifts, sizeof(int));
-    }
-
-    for (i = 0; i < num_rooms; ++i) {
-        for (s = 0; s < n_shifts; s++) {
-            if (nurse_shift_data[i][s]) continue;
-            do {
-                temp = rand() % num_nurses;
-            } while (nurse_assigned_to_room[i][temp]);
-            /*if (temp == 3) {
-                printf("Pausing");
-                getchar();
-            }*/
-            nurse_to_be_assigned = &nurses[temp];
-            if (!nurse_to_be_assigned) printf("\nThe nurse is null");
-            if (nurse_assigned_to_room[i][temp]) continue;
-
-            for (j = 0; j < nurse_to_be_assigned->num_shifts; ++j) {
-                int shift_var = 3 * nurse_to_be_assigned->shift[j].day + nurse_to_be_assigned->shift[j].shift_time;
-                if (rooms_requirement[i][j].load_sum > nurse_to_be_assigned->shift[j].load_left) continue;
-                //if (rooms_requirement[i][j].load_sum > nurses[temp].skill_level) continue;
-                int new_size = nurse_to_be_assigned->shift[j].num_rooms + 1;
-                //int* temp_room = (int*)realloc(nurse_to_be_assigned->shift[j].rooms, new_size * sizeof(int));
-                int* temp_room = NULL;
-                if (!nurse_to_be_assigned->shift[j].rooms) {
-                    temp_room = (int*)calloc(new_size, sizeof(int));
-                }
-                else {
-                    temp_room = (int*)realloc(nurse_to_be_assigned->shift[j].rooms, new_size * sizeof(int));
-                }
-                int* temp_nurse_alloted = (int*)realloc(room[i].nurses_alloted, (room[i].length_of_nurses_alloted + 1) * sizeof(int));
-                if (temp_nurse_alloted == NULL) {
-                    perror("Memory allocation failed for nurses_alloted");
-                    exit(EXIT_FAILURE);
-                }
-
-                room[i].nurses_alloted = temp_nurse_alloted;
-                room[i].nurses_alloted[room[i].length_of_nurses_alloted++] = temp;
-
-                if (temp_room) {
-                    nurse_to_be_assigned->shift[j].rooms = temp_room;
-                    nurse_to_be_assigned->shift[j].rooms[nurse_to_be_assigned->shift[j].num_rooms] = i;
-                    nurse_to_be_assigned->shift[j].num_rooms++;
-                    nurse_to_be_assigned->shift[j].load_left -= rooms_requirement[i][shift_var].load_sum;
-                    //nurse_to_be_assigned[nurse_id].shift[z].load_left -= rooms_requirement[j][3 * i + k].load_sum;
-                }
-                else {
-                    ASSERT(!temp, "Memory allocation error. restart your pc.\n");
-                }
-                nurse_shift_data[i][shift_var] = 1;
-            }
-            nurse_assigned_to_room[i][temp] = 1;
-
-        }
-        for (s = 0; s < n_shifts; s++) {
-            sorting_nurse_id_max_load();
-            if (nurse_shift_data[i][s])
-                continue;
-            if (!current_size_dm_nurse[s]) {
-                continue;
-            }
-            nurse_to_be_assigned = dm_nurses_availability[s][0];
-        
-            int* temp_room = NULL;
-            for (int z = 0; z < nurse_to_be_assigned->num_shifts; z++) {
-                if (nurse_to_be_assigned->shift[z].day != s / 3) {
-                    continue;
-                }
-             int new_size = nurse_to_be_assigned->shift[z].num_rooms + 1;
-            if (!nurse_to_be_assigned->shift[z].rooms) {
-                 temp_room = (int*)calloc(new_size, sizeof(int));
-                }
-                else {
-                    temp_room = (int*)realloc(nurse_to_be_assigned->shift[z].rooms, new_size * sizeof(int));
-                }
-            int* temp_nurse_alloted = (int*)realloc(room[i].nurses_alloted, (room[i].length_of_nurses_alloted + 1) * sizeof(int));
-            if (temp_nurse_alloted == NULL) {
-                perror("Memory allocation failed for nurses_alloted");
-                exit(EXIT_FAILURE);
-            }
-
-            room[i].nurses_alloted = temp_nurse_alloted;
-            room[i].nurses_alloted[room[i].length_of_nurses_alloted++] = temp;
-                if (temp_room) {
-                    nurse_to_be_assigned->shift[z].rooms = temp_room;
-                    nurse_to_be_assigned->shift[z].rooms[nurse_to_be_assigned->shift[z].num_rooms] = i;
-                    nurse_to_be_assigned->shift[z].num_rooms++;
-                    nurse_to_be_assigned->shift[z].load_left -= rooms_requirement[i][s].load_sum;
-                    //nurse_to_be_assigned[nurse_id].shift[z].load_left -= rooms_requirement[j][3 * i + k].load_sum;
-                }
-                else {
-                    ASSERT(!temp, "Memory allocation error. restart your pc.\n");
-                }
-
-
-            }
-        }
-    }
-}
+//void nurse_assignment_new() {
+//    int n_shifts = days * 3, i, j, n_id, temp, k, s;
+//    Nurses* nurse_to_be_assigned = NULL;
+//    int** nurse_shift_data = (int**)calloc(num_rooms, sizeof(int*));
+//    int** nurse_assigned_to_room = (int**)calloc(num_rooms, sizeof(int*));
+//    for (i = 0; i < num_rooms; i++) {
+//        nurse_assigned_to_room[i] = (int*)calloc(num_nurses, sizeof(int));
+//        nurse_shift_data[i] = (int*)calloc(n_shifts, sizeof(int));
+//    }
+//
+//    for (i = 0; i < num_rooms; ++i) {
+//        for (s = 0; s < n_shifts; s++) {
+//            if (nurse_shift_data[i][s]) continue;
+//            do {
+//                temp = rand() % num_nurses;
+//            } while (nurse_assigned_to_room[i][temp]);
+//            /*if (temp == 3) {
+//                printf("Pausing");
+//                getchar();
+//            }*/
+//            nurse_to_be_assigned = &nurses[temp];
+//            if (!nurse_to_be_assigned) printf("\nThe nurse is null");
+//            if (nurse_assigned_to_room[i][temp]) continue;
+//
+//            for (j = 0; j < nurse_to_be_assigned->num_shifts; ++j) {
+//                int shift_var = 3 * nurse_to_be_assigned->shift[j].day + nurse_to_be_assigned->shift[j].shift_time;
+//                if (rooms_requirement[i][j].load_sum > nurse_to_be_assigned->shift[j].load_left) continue;
+//                //if (rooms_requirement[i][j].load_sum > nurses[temp].skill_level) continue;
+//                int new_size = nurse_to_be_assigned->shift[j].num_rooms + 1;
+//                //int* temp_room = (int*)realloc(nurse_to_be_assigned->shift[j].rooms, new_size * sizeof(int));
+//                int* temp_room = NULL;
+//                if (!nurse_to_be_assigned->shift[j].rooms) {
+//                    temp_room = (int*)calloc(new_size, sizeof(int));
+//                }
+//                else {
+//                    temp_room = (int*)realloc(nurse_to_be_assigned->shift[j].rooms, new_size * sizeof(int));
+//                }
+//                int* temp_nurse_alloted = (int*)realloc(room[i].nurses_alloted, (room[i].length_of_nurses_alloted + 1) * sizeof(int));
+//                if (temp_nurse_alloted == NULL) {
+//                    perror("Memory allocation failed for nurses_alloted");
+//                    exit(EXIT_FAILURE);
+//                }
+//
+//                room[i].nurses_alloted = temp_nurse_alloted;
+//                room[i].nurses_alloted[room[i].length_of_nurses_alloted++] = temp;
+//
+//                if (temp_room) {
+//                    nurse_to_be_assigned->shift[j].rooms = temp_room;
+//                    nurse_to_be_assigned->shift[j].rooms[nurse_to_be_assigned->shift[j].num_rooms] = i;
+//                    nurse_to_be_assigned->shift[j].num_rooms++;
+//                    nurse_to_be_assigned->shift[j].load_left -= rooms_requirement[i][shift_var].load_sum;
+//                    //nurse_to_be_assigned[nurse_id].shift[z].load_left -= rooms_requirement[j][3 * i + k].load_sum;
+//                }
+//                else {
+//                    ASSERT(!temp, "Memory allocation error. restart your pc.\n");
+//                }
+//                nurse_shift_data[i][shift_var] = 1;
+//            }
+//            nurse_assigned_to_room[i][temp] = 1;
+//
+//        }
+//        for (s = 0; s < n_shifts; s++) {
+//            sorting_nurse_id_max_load();
+//            if (nurse_shift_data[i][s])
+//                continue;
+//            if (!current_size_dm_nurse[s]) {
+//                continue;
+//            }
+//            nurse_to_be_assigned = dm_nurses_availability[s][0];
+//        
+//            int* temp_room = NULL;
+//            for (int z = 0; z < nurse_to_be_assigned->num_shifts; z++) {
+//                if (nurse_to_be_assigned->shift[z].day != s / 3) {
+//                    continue;
+//                }
+//             int new_size = nurse_to_be_assigned->shift[z].num_rooms + 1;
+//            if (!nurse_to_be_assigned->shift[z].rooms) {
+//                 temp_room = (int*)calloc(new_size, sizeof(int));
+//                }
+//                else {
+//                    temp_room = (int*)realloc(nurse_to_be_assigned->shift[z].rooms, new_size * sizeof(int));
+//                }
+//            int* temp_nurse_alloted = (int*)realloc(room[i].nurses_alloted, (room[i].length_of_nurses_alloted + 1) * sizeof(int));
+//            if (temp_nurse_alloted == NULL) {
+//                perror("Memory allocation failed for nurses_alloted");
+//                exit(EXIT_FAILURE);
+//            }
+//
+//            room[i].nurses_alloted = temp_nurse_alloted;
+//            room[i].nurses_alloted[room[i].length_of_nurses_alloted++] = temp;
+//                if (temp_room) {
+//                    nurse_to_be_assigned->shift[z].rooms = temp_room;
+//                    nurse_to_be_assigned->shift[z].rooms[nurse_to_be_assigned->shift[z].num_rooms] = i;
+//                    nurse_to_be_assigned->shift[z].num_rooms++;
+//                    nurse_to_be_assigned->shift[z].load_left -= rooms_requirement[i][s].load_sum;
+//                    //nurse_to_be_assigned[nurse_id].shift[z].load_left -= rooms_requirement[j][3 * i + k].load_sum;
+//                }
+//                else {
+//                    ASSERT(!temp, "Memory allocation error. restart your pc.\n");
+//                }
+//
+//
+//            }
+//        }
+//    }
+//}
 
 //----------------------------------------------------------------------------------------------------
 
@@ -3398,7 +3654,7 @@ void print_max_loadd_updated() {
 void create_json_file(Patient* patients, int num_patients, Nurses* nurse, int num_nurses, int num_rooms, const char* instance_name, const char* output_folder) {
     // Create output directory
 #ifdef _WIN32
-    if (_mkdir(output_folder) != 0) perror("\nError creating folder");
+    if (_mkdir(output_folder) != 0) perror("Error creating folder");
 #else
     if (mkdir(output_folder, 0777) != 0) perror("Error creating folder");
 #endif
