@@ -68,6 +68,9 @@ typedef struct {
     int* workload_produced;
     int* skill_level_required;
     int is_admitted;
+    int num_nurses_alloted;
+    int* nurses_alloted;
+
 } Occupants;
 
 typedef struct {
@@ -88,6 +91,8 @@ typedef struct {
     int assigned_ot;
     int admission_day;
     int is_admitted;
+    int *nurses_allotted;
+    int num_nurses_allotted;
 } Patient;
 
 typedef struct {
@@ -110,11 +115,11 @@ typedef struct {
     int cap;
     int num_patients_allocated;
     int* num_patients_info;
+    gender *gender_days_info;
     //num_patients_info[i] : number of patients + occupants there are in a room on day i
     int occupants_cap;
     int* nurses_alloted;
     int length_of_nurses_alloted;
-    gender gen;
 } Rooms;
 
 typedef struct RoomsList {
