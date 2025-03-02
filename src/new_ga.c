@@ -187,6 +187,7 @@ void sort_ot_days_data_arr(OTs*** ot_days_data_arr, int day) {
 }
 
 
+
 int admitPatientsNewGA(int** room_gender_map, PriorityQueue* pq, int* chromosome, int size) {
     int i, j, p_id, s_id, r_id, d, ot_id, max = 0;
     int admitted_mandatory_count = 0, current_ot_index = 0;
@@ -224,7 +225,7 @@ int admitPatientsNewGA(int** room_gender_map, PriorityQueue* pq, int* chromosome
         if (max < chromosome[i])
             max = chromosome[i];
     // Allocate memory for patient scheduling tracking
-    int* unscheduled_mandatory_patients = (int*)calloc(max+1, sizeof(int));
+    int* unscheduled_mandatory_patients = (int*)calloc(max + 1, sizeof(int));
     int* scheduled_optional_patients = (int*)calloc(num_patients, sizeof(int));
     int* scheduled_mandatory_patients = (int*)calloc(num_patients, sizeof(int));
 
@@ -288,7 +289,7 @@ int admitPatientsNewGA(int** room_gender_map, PriorityQueue* pq, int* chromosome
             patients[p_id].is_admitted = 1;
             surgeon[s_id].time_left[d] -= patients[p_id].surgery_duration;
             ot[ot_id].time_left[d] -= patients[p_id].surgery_duration;
-           // ot_days_data_arr[d][current_ot_index]->time_left[d] -= patients[p_id].surgery_duration;
+            // ot_days_data_arr[d][current_ot_index]->time_left[d] -= patients[p_id].surgery_duration;
 
             break; // Move to the next patient after scheduling
         }
@@ -327,7 +328,6 @@ int admitPatientsNewGA(int** room_gender_map, PriorityQueue* pq, int* chromosome
 
     return unscheduled_mandatory;
 }
-
 
 /*
 void updateResources(int d) {
@@ -685,6 +685,111 @@ void update_num_patients_info() {
     }
 }
 
+void applyGeneticAlgorithmNewGA(PriorityQueue* pq)
+{
+    int i, j, best_fitness = INT_MAX, g_best = INT_MAX, best_fitness_mandatory = 0, minimized_cost = 0, feasible = 0;
+    unsigned int same_fitness_iter = 0;
+    float p_c = 0.85; // try with 0.6, 0.7, 0.8, 0.9
+    float p_m = 0.15;
+    int last_improvement = 0;
+    int last_improvement_iter = 0;
+
+    generatePopulationNewGA();
+    evaluateFitnessScoreNewGA(POPULATION[0], pq, mandatory_count);
+    memcpy(G_BEST, POPULATION[0], (CHROMOSOME_SIZE_NEW_GA + 2) * sizeof(int));
+    for (i = 0; i < POPULATION_SIZE; ++i) {
+        evaluateFitnessScoreNewGA(POPULATION[i], pq, mandatory_count);
+        if (G_BEST[CHROMOSOME_SIZE_NEW_GA] > POPULATION[i][CHROMOSOME_SIZE_NEW_GA]) {
+            memcpy(G_BEST, POPULATION[i], (CHROMOSOME_SIZE_NEW_GA + 2) * sizeof(int));
+        //    last_improvement = i;
+        //    //break;
+        //    /* printf("\nImprovement in population:%d", last_improvement);
+        //     printf("\nCost of the current_solution:%d", G_BEST[CHROMOSOME_SIZE_NEW_GA + 1]);*/
+        }
+        if (POPULATION[i][CHROMOSOME_SIZE_NEW_GA] == 0) {
+            feasible = 1;  // Mark that at least one feasible solution has been found
+            if(G_BEST[CHROMOSOME_SIZE_NEW_GA] != 0)
+                memcpy(G_BEST, POPULATION[i], (CHROMOSOME_SIZE_NEW_GA + 2) * sizeof(int));
+
+            if (POPULATION[i][CHROMOSOME_SIZE_NEW_GA + 1] < G_BEST[CHROMOSOME_SIZE_NEW_GA + 1]) {
+                memcpy(G_BEST, POPULATION[i], (CHROMOSOME_SIZE_NEW_GA + 2) * sizeof(int));
+                last_improvement = i;
+                /*printf("\nImprovement in population:%d", last_improvement);
+                printf("\nCost of the current_solution:%d", G_BEST[CHROMOSOME_SIZE_NEW_GA + 1]);*/
+            }
+        }
+    }
+
+    for (i = 0; i < NUM_ITER; ++i) {
+        //if (G_BEST[CHROMOSOME_SIZE_NEW_GA] == 0) break;
+        if ((rand() / (float)RAND_MAX) <= p_c) {
+            crossoverTournamentSelectionNewGA();
+            orderCrossoverNewGA();
+            for (j = 0; j < 2; ++j)
+                evaluateFitnessScoreNewGA(CROSSOVER_OFFSPRING_STORAGE_PLACE[j], pq, mandatory_count);
+            crossoverElitismViolations();
+            for (j = 0; j < 2; ++j) {
+                if (G_BEST[CHROMOSOME_SIZE_NEW_GA] > CROSSOVER_OFFSPRING_STORAGE_PLACE[j][CHROMOSOME_SIZE_NEW_GA])
+                {
+                    memcpy(G_BEST, CROSSOVER_OFFSPRING_STORAGE_PLACE[j], sizeof(int) * (CHROMOSOME_SIZE_NEW_GA + 2));
+                    last_improvement_iter = i;
+                    //break;
+                    /* printf("\nImprovement at iteration:%d", last_improvement_iter);
+                     printf("\nCost of the current_solution:%d", G_BEST[CHROMOSOME_SIZE_NEW_GA + 1]);*/
+                }
+                if (CROSSOVER_OFFSPRING_STORAGE_PLACE[j][CHROMOSOME_SIZE_NEW_GA] == 0) {
+                    feasible = 1;
+                    if (CROSSOVER_OFFSPRING_STORAGE_PLACE[j][CHROMOSOME_SIZE_NEW_GA + 1] < G_BEST[CHROMOSOME_SIZE_NEW_GA + 1]) {
+                        memcpy(G_BEST, CROSSOVER_OFFSPRING_STORAGE_PLACE[j], sizeof(int) * (CHROMOSOME_SIZE_NEW_GA + 2));
+                        last_improvement_iter = i;
+                        //break;
+                        /* printf("\nImprovement at iteration:%d", last_improvement_iter);
+                         printf("\nCost of the current_solution:%d", G_BEST[CHROMOSOME_SIZE_NEW_GA + 1]);*/
+                    }
+                }
+            }
+        }
+        else  {
+            mutationTournamentSelectionNewGA();
+            swapMutationNewGA();
+            evaluateFitnessScoreNewGA(MUTATED_OFFSPRING_STORAGE_PLACE, pq, mandatory_count);
+            mutationElitismViolations();
+            if (G_BEST[CHROMOSOME_SIZE_NEW_GA] > MUTATED_OFFSPRING_STORAGE_PLACE[CHROMOSOME_SIZE_NEW_GA]) {
+                memcpy(G_BEST, MUTATED_OFFSPRING_STORAGE_PLACE, sizeof(int) * (CHROMOSOME_SIZE_NEW_GA + 2));
+                last_improvement_iter = i;
+                /*printf("\nImprovement at iteration:%d", last_improvement_iter);
+                printf("\nCost of the current_solution:%d", G_BEST[CHROMOSOME_SIZE_NEW_GA + 1]);*/
+            }
+            if (MUTATED_OFFSPRING_STORAGE_PLACE[CHROMOSOME_SIZE_NEW_GA] == 0) {
+                feasible = 1;
+                
+                if (MUTATED_OFFSPRING_STORAGE_PLACE[CHROMOSOME_SIZE_NEW_GA + 1] < G_BEST[CHROMOSOME_SIZE_NEW_GA + 1]) {
+                    memcpy(G_BEST, MUTATED_OFFSPRING_STORAGE_PLACE, sizeof(int) * (CHROMOSOME_SIZE_NEW_GA + 2));
+                    last_improvement_iter = i;
+                    /*printf("\nImprovement at iteration:%d", last_improvement_iter);
+                    printf("\nCost of the current_solution:%d", G_BEST[CHROMOSOME_SIZE_NEW_GA + 1]);*/
+                }
+            }
+        }
+
+        // Checking for CONVERGENCE_STOPPING_CRITERION
+        /*if (G_BEST[CHROMOSOME_SIZE_NEW_GA] == g_best)
+            same_fitness_iter++;
+        else {
+            same_fitness_iter = 0;*/
+        g_best = G_BEST[CHROMOSOME_SIZE_NEW_GA];
+        // printf("\nIteration number: %d", i);
+     //}
+    }
+
+    printf("\nViolations in G_BEST: %d", G_BEST[CHROMOSOME_SIZE_NEW_GA]);
+    //minimizeCost(pq);
+    printf("\nCost of G_BEST: %d\n", G_BEST[CHROMOSOME_SIZE_NEW_GA + 1]);
+    printf("Number of iterations: %d\n", i);
+    printf("\nLast improvement from the population:%d", last_improvement);
+    printf("\nLast improvement in the iteration:%d", last_improvement_iter);
+}
+
 
 //void applyGeneticAlgorithmNewGA(PriorityQueue* pq) {
 //    int i, j;
@@ -771,107 +876,111 @@ void update_num_patients_info() {
 //    printf("Number of iterations: %d", i);
 //}
 
-void applyGeneticAlgorithmNewGA(PriorityQueue* pq)
-{
-    int i, j, best_fitness = INT_MAX, g_best = INT_MAX, best_fitness_mandatory = 0, minimized_cost = 0, feasible = 0;
-    unsigned int same_fitness_iter = 0;
-    float p_c = 0.85; // try with 0.6, 0.7, 0.8, 0.9
-    float p_m = 0.15;
-    int last_improvement = 0;
-    int last_improvement_iter = 0;
-
-    generatePopulationNewGA();
-    evaluateFitnessScoreNewGA(POPULATION[0], pq, mandatory_count);
-    memcpy(G_BEST, POPULATION[0], (CHROMOSOME_SIZE_NEW_GA + 2) * sizeof(int));
-    for (i = 0; i < POPULATION_SIZE; ++i) {
-        evaluateFitnessScoreNewGA(POPULATION[i], pq, mandatory_count);
-        if (G_BEST[CHROMOSOME_SIZE_NEW_GA] > POPULATION[i][CHROMOSOME_SIZE_NEW_GA]) {
-            memcpy(G_BEST, POPULATION[i], (CHROMOSOME_SIZE_NEW_GA + 2) * sizeof(int));
-            last_improvement = i;
-            break;
-           /* printf("\nImprovement in population:%d", last_improvement);
-            printf("\nCost of the current_solution:%d", G_BEST[CHROMOSOME_SIZE_NEW_GA + 1]);*/
-        }
-        if (POPULATION[i][CHROMOSOME_SIZE_NEW_GA] == 0 ) {
-            feasible = 1;  // Mark that at least one feasible solution has been found
-            //if(G_BEST[])
-            if (POPULATION[i][CHROMOSOME_SIZE_NEW_GA + 1] < G_BEST[CHROMOSOME_SIZE_NEW_GA + 1]) {
-                memcpy(G_BEST, POPULATION[i], (CHROMOSOME_SIZE_NEW_GA + 2) * sizeof(int));
-                last_improvement = i;
-                /*printf("\nImprovement in population:%d", last_improvement);
-                printf("\nCost of the current_solution:%d", G_BEST[CHROMOSOME_SIZE_NEW_GA + 1]);*/
-            }
-        }
-    }
-
-    for (i = 0; i < NUM_ITER; ++i) {
-        if (G_BEST[CHROMOSOME_SIZE_NEW_GA] == 0) break;
-         if ((rand() / (float)RAND_MAX) <= p_c) {
-            crossoverTournamentSelectionNewGA();
-            orderCrossoverNewGA();
-            for (j = 0; j < 2; ++j)
-                evaluateFitnessScoreNewGA(CROSSOVER_OFFSPRING_STORAGE_PLACE[j], pq, mandatory_count);
-            crossoverElitismViolations();
-            for (j = 0; j < 2; ++j) {
-                if (CROSSOVER_OFFSPRING_STORAGE_PLACE[j][CHROMOSOME_SIZE_NEW_GA] == 0) {
-                   feasible = 1;
-                   if (G_BEST[CHROMOSOME_SIZE_NEW_GA] > CROSSOVER_OFFSPRING_STORAGE_PLACE[j][CHROMOSOME_SIZE_NEW_GA])
-                   {
-                       memcpy(G_BEST, CROSSOVER_OFFSPRING_STORAGE_PLACE[j], sizeof(int) * (CHROMOSOME_SIZE_NEW_GA + 2));
-                       last_improvement_iter = i;
-                       break;
-                      /* printf("\nImprovement at iteration:%d", last_improvement_iter);
-                       printf("\nCost of the current_solution:%d", G_BEST[CHROMOSOME_SIZE_NEW_GA + 1]);*/
-                   }
-                       if (CROSSOVER_OFFSPRING_STORAGE_PLACE[j][CHROMOSOME_SIZE_NEW_GA + 1] < G_BEST[CHROMOSOME_SIZE_NEW_GA + 1]) {
-                        memcpy(G_BEST, CROSSOVER_OFFSPRING_STORAGE_PLACE[j], sizeof(int) * (CHROMOSOME_SIZE_NEW_GA + 2));
-                        last_improvement_iter = i;
-                        break;
-                       /* printf("\nImprovement at iteration:%d", last_improvement_iter);
-                        printf("\nCost of the current_solution:%d", G_BEST[CHROMOSOME_SIZE_NEW_GA + 1]);*/
-                    }
-                }
-            }
-        }
-        else if ((rand() / (float)RAND_MAX) <= p_m) {
-            mutationTournamentSelectionNewGA();
-            swapMutationNewGA();
-            evaluateFitnessScoreNewGA(MUTATED_OFFSPRING_STORAGE_PLACE, pq, mandatory_count);
-            mutationElitismViolations();
-            if (MUTATED_OFFSPRING_STORAGE_PLACE[CHROMOSOME_SIZE_NEW_GA] == 0) {
-                feasible = 1;
-                if (G_BEST[CHROMOSOME_SIZE_NEW_GA] > MUTATED_OFFSPRING_STORAGE_PLACE[CHROMOSOME_SIZE_NEW_GA]) {
-                    memcpy(G_BEST, MUTATED_OFFSPRING_STORAGE_PLACE, sizeof(int) * (CHROMOSOME_SIZE_NEW_GA + 2));
-                    last_improvement_iter = i;
-                    /*printf("\nImprovement at iteration:%d", last_improvement_iter);
-                    printf("\nCost of the current_solution:%d", G_BEST[CHROMOSOME_SIZE_NEW_GA + 1]);*/
-                }
-                if (MUTATED_OFFSPRING_STORAGE_PLACE[CHROMOSOME_SIZE_NEW_GA + 1] < G_BEST[CHROMOSOME_SIZE_NEW_GA + 1]) {
-                    memcpy(G_BEST, MUTATED_OFFSPRING_STORAGE_PLACE, sizeof(int) * (CHROMOSOME_SIZE_NEW_GA + 2));
-                    last_improvement_iter = i;
-                    /*printf("\nImprovement at iteration:%d", last_improvement_iter);
-                    printf("\nCost of the current_solution:%d", G_BEST[CHROMOSOME_SIZE_NEW_GA + 1]);*/
-                }
-            }
-        }
-
-        // Checking for CONVERGENCE_STOPPING_CRITERION
-        /*if (G_BEST[CHROMOSOME_SIZE_NEW_GA] == g_best)
-            same_fitness_iter++;
-        else {
-            same_fitness_iter = 0;*/
-        g_best = G_BEST[CHROMOSOME_SIZE_NEW_GA];
-        // printf("\nIteration number: %d", i);
-     //}
-    }
-
-    printf("\nViolations in G_BEST: %d", G_BEST[CHROMOSOME_SIZE_NEW_GA]);
-    //minimizeCost(pq);
-    printf("\nCost of G_BEST: %d\n", G_BEST[CHROMOSOME_SIZE_NEW_GA + 1]);
-    printf("Number of iterations: %d\n", i);
-    printf("\nLast improvement from the population:%d", last_improvement);
-    printf("\nLast improvement in the iteration:%d", last_improvement_iter);
-}
+//void applyGeneticAlgorithmNewGA(PriorityQueue* pq)
+//{
+//    int i, j, best_fitness = INT_MAX, g_best = INT_MAX, best_fitness_mandatory = 0, minimized_cost = 0, feasible = 0,flag = 0;
+//    unsigned int same_fitness_iter = 0;
+//    float p_c = 0.85; // try with 0.6, 0.7, 0.8, 0.9
+//    float p_m = 0.15;
+//    int last_improvement = 0;
+//    int last_improvement_iter = 0;
+//
+//    generatePopulationNewGA();
+//    evaluateFitnessScoreNewGA(POPULATION[0], pq, mandatory_count);
+//    /*memcpy(G_BEST, POPULATION[0], (CHROMOSOME_SIZE_NEW_GA + 2) * sizeof(int));*/
+//    for (i = 0; i < POPULATION_SIZE; ++i) {
+//        evaluateFitnessScoreNewGA(POPULATION[i], pq, mandatory_count);
+//        if (POPULATION[i][CHROMOSOME_SIZE_NEW_GA] != -1 && !flag) {
+//            memcpy(G_BEST, POPULATION[i], (CHROMOSOME_SIZE_NEW_GA + 2) * sizeof(int));
+//            flag = 1;
+//        }
+//        if (G_BEST[CHROMOSOME_SIZE_NEW_GA] > POPULATION[i][CHROMOSOME_SIZE_NEW_GA]) {
+//            memcpy(G_BEST, POPULATION[i], (CHROMOSOME_SIZE_NEW_GA + 2) * sizeof(int));
+//            last_improvement = i;
+//            //break;
+//           /* printf("\nImprovement in population:%d", last_improvement);
+//            printf("\nCost of the current_solution:%d", G_BEST[CHROMOSOME_SIZE_NEW_GA + 1]);*/
+//        }
+//        if (POPULATION[i][CHROMOSOME_SIZE_NEW_GA] == 0 ) {
+//            feasible = 1;  // Mark that at least one feasible solution has been found
+//            //if(G_BEST[])
+//            if (POPULATION[i][CHROMOSOME_SIZE_NEW_GA + 1] < G_BEST[CHROMOSOME_SIZE_NEW_GA + 1]) {
+//                memcpy(G_BEST, POPULATION[i], (CHROMOSOME_SIZE_NEW_GA + 2) * sizeof(int));
+//                last_improvement = i;
+//                /*printf("\nImprovement in population:%d", last_improvement);
+//                printf("\nCost of the current_solution:%d", G_BEST[CHROMOSOME_SIZE_NEW_GA + 1]);*/
+//            }
+//        }
+//    }
+//
+//    for (i = 0; i < NUM_ITER; ++i) {
+//        //if (G_BEST[CHROMOSOME_SIZE_NEW_GA] == 0) break;
+//         if ((rand() / (float)RAND_MAX) <= p_c) {
+//            crossoverTournamentSelectionNewGA();
+//            orderCrossoverNewGA();
+//            for (j = 0; j < 2; ++j)
+//                evaluateFitnessScoreNewGA(CROSSOVER_OFFSPRING_STORAGE_PLACE[j], pq, mandatory_count);
+//            crossoverElitismViolations();
+//            for (j = 0; j < 2; ++j) {
+//                if (CROSSOVER_OFFSPRING_STORAGE_PLACE[j][CHROMOSOME_SIZE_NEW_GA] == 0) {
+//                   feasible = 1;
+//                   if (G_BEST[CHROMOSOME_SIZE_NEW_GA] > CROSSOVER_OFFSPRING_STORAGE_PLACE[j][CHROMOSOME_SIZE_NEW_GA])
+//                   {
+//                       memcpy(G_BEST, CROSSOVER_OFFSPRING_STORAGE_PLACE[j], sizeof(int) * (CHROMOSOME_SIZE_NEW_GA + 2));
+//                       last_improvement_iter = i;
+//                       //break;
+//                      /* printf("\nImprovement at iteration:%d", last_improvement_iter);
+//                       printf("\nCost of the current_solution:%d", G_BEST[CHROMOSOME_SIZE_NEW_GA + 1]);*/
+//                   }
+//                       if (CROSSOVER_OFFSPRING_STORAGE_PLACE[j][CHROMOSOME_SIZE_NEW_GA + 1] < G_BEST[CHROMOSOME_SIZE_NEW_GA + 1]) {
+//                        memcpy(G_BEST, CROSSOVER_OFFSPRING_STORAGE_PLACE[j], sizeof(int) * (CHROMOSOME_SIZE_NEW_GA + 2));
+//                        last_improvement_iter = i;
+//                        //break;
+//                       /* printf("\nImprovement at iteration:%d", last_improvement_iter);
+//                        printf("\nCost of the current_solution:%d", G_BEST[CHROMOSOME_SIZE_NEW_GA + 1]);*/
+//                    }
+//                }
+//            }
+//        }
+//        else  {
+//            mutationTournamentSelectionNewGA();
+//            swapMutationNewGA();
+//            evaluateFitnessScoreNewGA(MUTATED_OFFSPRING_STORAGE_PLACE, pq, mandatory_count);
+//            mutationElitismViolations();
+//            if (MUTATED_OFFSPRING_STORAGE_PLACE[CHROMOSOME_SIZE_NEW_GA] == 0) {
+//                feasible = 1;
+//                if (G_BEST[CHROMOSOME_SIZE_NEW_GA] > MUTATED_OFFSPRING_STORAGE_PLACE[CHROMOSOME_SIZE_NEW_GA]) {
+//                    memcpy(G_BEST, MUTATED_OFFSPRING_STORAGE_PLACE, sizeof(int) * (CHROMOSOME_SIZE_NEW_GA + 2));
+//                    last_improvement_iter = i;
+//                    /*printf("\nImprovement at iteration:%d", last_improvement_iter);
+//                    printf("\nCost of the current_solution:%d", G_BEST[CHROMOSOME_SIZE_NEW_GA + 1]);*/
+//                }
+//                if (MUTATED_OFFSPRING_STORAGE_PLACE[CHROMOSOME_SIZE_NEW_GA + 1] < G_BEST[CHROMOSOME_SIZE_NEW_GA + 1]) {
+//                    memcpy(G_BEST, MUTATED_OFFSPRING_STORAGE_PLACE, sizeof(int) * (CHROMOSOME_SIZE_NEW_GA + 2));
+//                    last_improvement_iter = i;
+//                    /*printf("\nImprovement at iteration:%d", last_improvement_iter);
+//                    printf("\nCost of the current_solution:%d", G_BEST[CHROMOSOME_SIZE_NEW_GA + 1]);*/
+//                }
+//            }
+//        }
+//
+//        // Checking for CONVERGENCE_STOPPING_CRITERION
+//        /*if (G_BEST[CHROMOSOME_SIZE_NEW_GA] == g_best)
+//            same_fitness_iter++;
+//        else {
+//            same_fitness_iter = 0;*/
+//        g_best = G_BEST[CHROMOSOME_SIZE_NEW_GA];
+//        // printf("\nIteration number: %d", i);
+//     //}
+//    }
+//
+//    printf("\nViolations in G_BEST: %d", G_BEST[CHROMOSOME_SIZE_NEW_GA]);
+//    //minimizeCost(pq);
+//    printf("\nCost of G_BEST: %d\n", G_BEST[CHROMOSOME_SIZE_NEW_GA + 1]);
+//    printf("Number of iterations: %d\n", i);
+//    printf("\nLast improvement from the population:%d", last_improvement);
+//    printf("\nLast improvement in the iteration:%d", last_improvement_iter);
+//}
 
 void evaluateFitnessScoreNewGA(int* chromosome, PriorityQueue* pq, int size)
 {   // fitness score is the number of mandatory patients who were admitted in the scheduling period.
@@ -879,6 +988,7 @@ void evaluateFitnessScoreNewGA(int* chromosome, PriorityQueue* pq, int size)
     reset_valuesNewGA();
     chromosome[size] = admitPatientsNewGA(&room_gender_map, pq, chromosome, size);
     //if (chromosome[CHROMOSOME_SIZE_NEW_GA] == 0) getchar();
+    if (chromosome[size] == -1) return
     chromosome[size] = findViolations();
     chromosome[size + 1] = findCost();
     //reset_valuesNewGA();
@@ -1038,6 +1148,77 @@ int skill_level_mix() {
     }
     return cost;
 }
+
+
+
+int excessiveNurseload() {
+    int n, s, r, load, shift_var,cost = 0;
+    for (n = 0; n < num_nurses; n++) {
+        for (s = 0; s < nurses[n].num_shifts; s++) {
+            int day = nurses[n].shift[s].day;
+            int shift_time = nurses[n].shift[s].shift_time;
+            shift_var = 3 * day + shift_time;
+            for (r = 0; r < nurses[n].shift[s].num_rooms; r++) {
+                load = rooms_requirement[nurses[n].shift[s].rooms[r]][shift_var].load_sum;
+                if (load > nurses[n].shift[s].load_left)
+                    cost += load - nurses[n].shift[s].load_left;
+            }
+        }
+    }
+    return cost;
+}
+
+int coc() {
+    int cost = 0, count;
+    for (int o = 0; o < num_occupants; o++)
+    {
+        count = countdistinctnurses_occupants(o);
+        if (count > 0)
+        {
+            cost += count;
+        }
+    }
+    for (int p = 0; p < num_patients; p++)
+    {
+        if (patients[p].admission_day != -1)
+        {
+            count = countdistinctnurses(p);
+            if (count > 0)
+            {
+                cost += count;
+            }
+        }
+    }
+    return cost;
+
+}
+
+int countdistinctnurses(int p) {
+    int* tag = (int*)calloc(num_nurses, sizeof(int));
+    int i, n, count = 0;
+    for (i = 0; i < patients[p].num_nurses_allotted; i++) {
+        n = patients[p].nurses_allotted[i];
+        if (n != -1 && !tag[n]) {
+            tag[n] = 1;
+            count++;
+        }
+    }
+    return count;
+}
+
+int countdistinctnurses_occupants(int o) {
+    int* tag = (int*)calloc(num_nurses, sizeof(int));
+    int i, n, count = 0;
+    for (i = 0; i < occupants[o].num_nurses_alloted; i++) {
+        n = occupants[o].nurses_alloted[i];
+        if (n != -1 && !tag[n]) {
+            tag[n] = 1;
+            count++;
+        }
+    }
+    return count;
+}
+
 
 void crossoverTournamentSelectionNewGA(void)
 {   // select 2 parents using Tournament Selection method
@@ -1378,10 +1559,10 @@ void ApplyHillClimbing(int* G_BEST, PriorityQueue* pq) {
     }
 
     memcpy(temp_solution, G_BEST, (num_patients + 2) * sizeof(int));
-    printf("\nChromosome:\t");
+    /*printf("\nChromosome:\t");
     for (int i = 0; i < num_patients; i++) {
         printf("%d\t", temp_solution[i]);
-    }
+    }*/
 
     printf("\nPerforming Genetic Algorithm with Optional Patients...");
 
@@ -1397,14 +1578,17 @@ void ApplyHillClimbing(int* G_BEST, PriorityQueue* pq) {
 
          // Check if the new solution is feasible
         if (temp_solution[num_patients] == 0) {
-            last_improv = i;
-            no_of_improv++;
+            /*last_improv = i;
+            no_of_improv++;*/
            // printf("\nFound a feasible solution after mutation.");
-            if (temp_solution[num_patients + 1] < G_BEST[num_patients + 1]) {
+           // if (temp_solution[num_patients + 1] < G_BEST[num_patients + 1]) {
                 memcpy(G_BEST, temp_solution, (num_patients + 2) * sizeof(int));
                 last_improv = i;
                 no_of_improv++;
-            }
+            //}
+           /* else {
+                memcpy(temp_solution, G_BEST, (num_patients + 2) * sizeof(int));
+            }*/
                 
             
         }
@@ -1413,7 +1597,10 @@ void ApplyHillClimbing(int* G_BEST, PriorityQueue* pq) {
         }
         i++;
     }
-
+    printf("\nG_BEST : \n");
+    for (int i = 0; i < optional_count + mandatory_count + 2; i++) {
+        printf("%d\t", G_BEST[i]);
+    }
     printf("\nFinal feasible G_BEST after swap mutation applied.");
     printf("\nLast improvement from hill climbing:%d", last_improv);
     printf("\nNumber of improvements:%d", no_of_improv);
@@ -1510,7 +1697,7 @@ void ApplyHillClimbing(int* G_BEST, PriorityQueue* pq) {
 //---------------------------------------------------------ABOVE: GENETIC ALGORITHM-------------------------------------------------------------
 
 int main(void) {
-    parse_json("data/testInstances/test06.json");
+    parse_json("data/testInstances/test09.json");
     PriorityQueue* pq;
     //srand(0);
     pq = (PriorityQueue*)calloc(1, sizeof(PriorityQueue));
@@ -1563,7 +1750,7 @@ int main(void) {
         printf("%d\t", G_BEST[i]);*/
 
     nurse_assignments();
-    create_json_file(patients, num_patients, nurses, num_nurses, num_rooms, "test06", "D:/major_code/build/output");
+    create_json_file(patients, num_patients, nurses, num_nurses, num_rooms, "test09", "D:/major_code/build/output");
     //print_surgeons(surgeon);
     //
     //    // Free allocated memory
