@@ -55,6 +55,7 @@ extern Surgeon* surgeon;
 extern OTs* ot;
 extern Rooms* room;
 extern void append_optionals();
+extern void put_occupants();
 // one idea is that make the patients_assigned array a static array and remove num_patients_assigned field from the structure.
 
 
@@ -1982,6 +1983,7 @@ int nurseAllocationGA(int* nurse_chromosome)
             return 1;
         }
     }
+    //put_occupants();
 
     for (n_index = 0; n_index < CHROMOSOME_SIZE_NURSE_GA; ++n_index) {
         n_id = nurse_chromosome[n_index];
@@ -2569,6 +2571,7 @@ int main(void) {
     create_3d_array();
     initialize_rooms_req(num_rooms);
     create_rooms_req();
+    print_room_schedule();
     initDataStructuresNurseGA();
     applyNursesGA();
     resetValuesNurseGA();
