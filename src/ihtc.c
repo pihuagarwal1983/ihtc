@@ -3672,8 +3672,8 @@ void create_json_file(Patient* patients, int num_patients, Nurses* nurse, int nu
 
     // Calculate ID padding sizes
     int patient_digits = (num_patients > 1) ? ((int)log10(num_patients) + 1) : 1;
-    int nurse_digits = (num_nurses > 1) ? ((int)log10(num_nurses) + 2) : 1;
-    int room_digits = (num_rooms > 1) ? ((int)log10(num_rooms) + 1) : 1;
+    int nurse_digits = (num_nurses > 1) ? ((int)log10(num_nurses) + 1) : 1;
+    int room_digits = (num_rooms > 1) ? ((int)log10(num_rooms) + 0) : 1;
     int ot_digits = (num_ots > 1) ? ((int)log10(num_ots) + 0) : 1;
 
     // Write JSON data

@@ -1903,7 +1903,7 @@ void applyNursesGA(void)
     unsigned int same_fitness_iter;
     float p_c = 0.85; // try with 0.6, 0.7, 0.8, 0.9
     generatePopulationNurseGA();
-    printPopulationNurseGA();
+    //printPopulationNurseGA();
 
     for (i = 0; i < NURSE_POPULATION_SIZE; ++i) {
         resetValuesNurseGA();
@@ -1922,7 +1922,7 @@ void applyNursesGA(void)
         if ((rand() / (float)RAND_MAX) <= p_c) {
             crossoverTournamentSelectionNurseGA();
             orderCrossoverNurseGA();
-            printf("\nCrossover Offsprings: ");
+            /*printf("\nCrossover Offsprings: ");
             printf("\nOffspring 2:");
             for (int m = 0; m < CHROMOSOME_SIZE_NURSE_GA; m++) {
                 printf("%d\t", NURSE_CROSSOVER_OFFSPRING_STORAGE_PLACE[0][m]);
@@ -1930,7 +1930,7 @@ void applyNursesGA(void)
             printf("\nOffspring 2:");
             for (int m = 0; m < CHROMOSOME_SIZE_NURSE_GA; m++) {
                 printf("%d\t", NURSE_CROSSOVER_OFFSPRING_STORAGE_PLACE[1][m]);
-            }
+            }*/
             // calculate the fitness of the 2 new offsprings
             for (j = 0; j < 2; ++j)
                 evaluateFitnessNurseGA(NURSE_CROSSOVER_OFFSPRING_STORAGE_PLACE[j]);
@@ -1940,7 +1940,7 @@ void applyNursesGA(void)
                     memcpy(G_BEST, NURSE_CROSSOVER_OFFSPRING_STORAGE_PLACE[j], sizeof(int) * (CHROMOSOME_SIZE_NURSE_GA + 1));
         }
         else {
-            mutationTournamentSelection_temp();
+            mutationTournamentSelectionNurseGA();
             /*printf("\nMutation Parent: ");
             for (int i = 0; i < CHROMOSOME_SIZE; i++) {
                 printf("%d\t", MUTATE_PARENT_STORAGE_PLACE[i]);
@@ -2283,7 +2283,7 @@ void orderCrossoverNurseGA(void) {
         // FIX: Check gene validity before accessing visited
         if (gene >= 0 && !visited1[gene]) {
             // Find next empty slot in offspring0
-            while(NURSE_CROSSOVER_OFFSPRING_STORAGE_PLACE[0][k] != -1) {
+            if(NURSE_CROSSOVER_OFFSPRING_STORAGE_PLACE[0][k] != -1) {
                 k = (k + 1) % CHROMOSOME_SIZE_NURSE_GA;
             }
             NURSE_CROSSOVER_OFFSPRING_STORAGE_PLACE[0][k] = gene;
@@ -2300,7 +2300,7 @@ void orderCrossoverNurseGA(void) {
         if (gene >= 0 && !visited2[gene]) {
             iterations = 0;
             // Find next empty slot in offspring1
-            while(NURSE_CROSSOVER_OFFSPRING_STORAGE_PLACE[1][m] != -1) {
+            if(NURSE_CROSSOVER_OFFSPRING_STORAGE_PLACE[1][m] != -1) {
                 m = (m + 1) % CHROMOSOME_SIZE_NURSE_GA;
                 iterations++;
             }
@@ -2308,6 +2308,21 @@ void orderCrossoverNurseGA(void) {
             visited2[gene] = true;  // FIX: Mark as visited
         }
     }
+    for (i = 0; i < CHROMOSOME_SIZE_NURSE_GA; i++) {
+        int index = (r2 + 1 + i) % CHROMOSOME_SIZE_NURSE_GA;
+        int gene = NURSE_CROSSOVER_PARENT_STORAGE_PLACE[1][index];
+        if (NURSE_CROSSOVER_OFFSPRING_STORAGE_PLACE[0][i] == -1) {
+            if (gene >= 0 && !visited1[gene]) {
+                // Find next empty slot in offspring0
+                if (NURSE_CROSSOVER_OFFSPRING_STORAGE_PLACE[0][k] != -1) {
+                    k = (k + 1) % CHROMOSOME_SIZE_NURSE_GA;
+                }
+                NURSE_CROSSOVER_OFFSPRING_STORAGE_PLACE[0][k] = gene;
+                visited1[gene] = true;  // FIX: Mark as visited
+            }
+        }
+    }
+    
 
     free(visited1);
     free(visited2);
@@ -2521,7 +2536,13 @@ void printPopulationNurseGA(void)
 
 
 int main(void) {
-    parse_json("data/instances/i09.json");
+    clock_t start, end;
+    double cpu_time_used;
+
+    start = clock();  // Start time
+
+    
+    parse_json("data/instances/i02.json");
     PriorityQueue* pq;
     //srand(0);
     pq = (PriorityQueue*)calloc(1, sizeof(PriorityQueue));
@@ -2581,7 +2602,7 @@ int main(void) {
          printf("%d\t", G_BEST[i]);*/
 
     //nurse_assignments();
-    create_json_file(patients, num_patients, nurses, num_nurses, num_rooms, "i09", "D:/major_code/build/output(10000)");
+    create_json_file(patients, num_patients, nurses, num_nurses, num_rooms, "i02", "D:/major_code/build/output(10000)");
     //print_surgeons(surgeon);
     //
     //    // Free allocated memory
@@ -2595,6 +2616,11 @@ int main(void) {
     free_nurses();
     //freeDataStructures();
     free(weights);
+
+    end = clock();  // End time
+
+    cpu_time_used = ((double)(end - start)) / CLOCKS_PER_SEC;  // Convert to seconds
+    printf("Execution Time: %f seconds\n", cpu_time_used);
 
     return 0;
 }
