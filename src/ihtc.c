@@ -2506,6 +2506,7 @@ void create_3d_array(void) {
             }
         }
     }
+    ///put_occupants();
 }
 
 void print_room_schedule(void) {
@@ -3660,7 +3661,8 @@ void create_json_file(Patient* patients, int num_patients, Nurses* nurse, int nu
 #endif
 
     char filepath[200];
-    snprintf(filepath, sizeof(filepath), "%s/%s_solution.json", output_folder, instance_name);
+    snprintf(filepath, sizeof(filepath), "%s/sol_%s.json", output_folder, instance_name);
+   // snprintf(filepath, sizeof(filepath), "%s/sol_%s_run%d.json", output_folder, instance_name, run_number);
 
     FILE* file = fopen(filepath, "w");
     if (file == NULL) {
@@ -3672,7 +3674,7 @@ void create_json_file(Patient* patients, int num_patients, Nurses* nurse, int nu
     int patient_digits = (num_patients > 1) ? ((int)log10(num_patients) + 1) : 1;
     int nurse_digits = (num_nurses > 1) ? ((int)log10(num_nurses) + 2) : 1;
     int room_digits = (num_rooms > 1) ? ((int)log10(num_rooms) + 1) : 1;
-    int ot_digits = (num_ots > 1) ? ((int)log10(num_ots) + 1) : 1;
+    int ot_digits = (num_ots > 1) ? ((int)log10(num_ots) + 0) : 1;
 
     // Write JSON data
     fprintf(file, "{");
@@ -3721,9 +3723,9 @@ void create_json_file(Patient* patients, int num_patients, Nurses* nurse, int nu
     fprintf(file, "}\n");
 
     fclose(file);
-    printf("\nJSON file saved at: %s/%s_solution.json\n", output_folder, instance_name);
+    //printf("\nJSON file saved at: sol_%s/%s.json\n", output_folder, instance_name);
+    printf("JSON file saved at: %s\n", filepath);
 }
-
 
 //int main(void) {
 //
