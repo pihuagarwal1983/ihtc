@@ -62,3 +62,4 @@ Thumbs.db   # Windows-specific
 # Ignore personal or sensitive files
 *.env
 *.key
+output.zip
