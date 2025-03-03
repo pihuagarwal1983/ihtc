@@ -8,6 +8,9 @@
 #include <direct.h>    
 //#include <unistd.h>
 #include <stdbool.h>
+#include <time.h>
+#include <pthread.h>
+#include <limits.h>
 
 // Assertions for debugging
 #define ASSERT(condition, message) \
@@ -32,6 +35,7 @@ typedef struct {
     int day;
     shift_types shift_time;
     int max_load;
+    int load_left;
     int* rooms;
     int num_rooms;
 } Shifts;
@@ -63,6 +67,8 @@ typedef struct {
     int* workload_produced;
     int* skill_level_required;
     int is_admitted;
+    int num_nurses_alloted;
+    int* nurses_alloted;
 } Occupants;
 
 typedef struct {
@@ -83,6 +89,8 @@ typedef struct {
     int assigned_ot;
     int admission_day;
     int is_admitted;
+    int* nurses_allotted;
+    int num_nurses_allotted;
 } Patient;
 
 typedef struct {
@@ -105,6 +113,8 @@ typedef struct {
     int cap;
     int num_patients_allocated;
     int occupants_cap;
+    gender* gender_days_info;
+    int* num_patients_info;
     int* nurses_alloted;
     int length_of_nurses_alloted;
     gender gen;
@@ -154,6 +164,12 @@ typedef struct {
     int capacity;
 } RoomVector;
 
+typedef struct {
+    int index;
+    int* chromosome;
+    PriorityQueue* pq;
+} ThreadArgs;
+
 // Global variables declaration
 extern int days;
 extern int skill_levels;
@@ -179,7 +195,7 @@ extern Occupants* occupants;
 extern Patient* patients;
 extern Patient** mandatory_patients;
 extern Patient** optional_patients;
-extern Patient**** room_schedule;
+extern char**** room_schedule;
 extern Surgeon* surgeon;
 extern OTs* ot;
 extern Rooms* room;
