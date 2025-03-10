@@ -2542,7 +2542,7 @@ int main(void) {
     start = clock();  // Start time
 
     
-    parse_json("data/instances/i02.json");
+    parse_json("data/instances/i05.json");
     PriorityQueue* pq;
     //srand(0);
     pq = (PriorityQueue*)calloc(1, sizeof(PriorityQueue));
@@ -2602,7 +2602,7 @@ int main(void) {
          printf("%d\t", G_BEST[i]);*/
 
     //nurse_assignments();
-    create_json_file(patients, num_patients, nurses, num_nurses, num_rooms, "i02", "D:/major_code/build/output(10000)");
+    create_json_file(patients, num_patients, nurses, num_nurses, num_rooms, "i05", "D:/major_code/build/output(10000)");
     //print_surgeons(surgeon);
     //
     //    // Free allocated memory
